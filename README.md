@@ -14,14 +14,14 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 
 ---
 
-##  기술 스택
+## 📚 기술 스택
 ### 개발 환경
 <img src="https://img.shields.io/badge/AndroidStudio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white">
 ### 
 ---
 
 ## 🔥 주요 기능
-### 실시간 졸음 감지  
+### ⭐ 실시간 졸음 감지  
 - 📷 **카메라 기반 감지** (ML Kit)  
   - 눈 깜빡임, 하품 감지를 통해 졸음운전 판단  
   - 일정 기준 초과 시 경고음 + 음성 안내 발생  
@@ -29,7 +29,7 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
   - 차량 내부의 이산화탄소 농도를 측정하여 졸음 위험도 분석  
   - 위험 수치 초과 시 경고음 발생  
 
-### 졸음 감지 후 휴게소 안내  
+### ⭐ 졸음 감지 후 휴게소 안내  
 - 🚘 **KakaoMap API로 현재 위치 반영**  
 - 🏢 **졸음 감지 시, '휴게소' 또는 '졸음쉼터' 선택 → KakaoMap 키워드 검색으로 연결**  
 
