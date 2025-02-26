@@ -17,7 +17,7 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 ## 📌 시스템 흐름도
 
 <div align="center">
-   
+  <img src="https://github.com/user-attachments/assets/328fd6a9-bc09-4029-8e36-554e19f39a67" width="400">
 </div>
 
 ---
