@@ -14,6 +14,12 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 
 ---
 
+## 📌 시스템 흐름도
+
+![image](https://github.com/user-attachments/assets/173de0f1-0e5e-4701-b90c-97081e57122c)
+
+---
+
 ## 📚 기술 스택
 ### 개발 환경
 <div>
@@ -29,7 +35,18 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 
 ---
 
+## 🛠️ 시스템 요구사항
+
+| 구분 | 세부 내용 |
+|------|----------------------------------------------------------|
+| **하드웨어** | - 📷 **안드로이드 스마트폰 카메라** <br> - 🔌 **Arduino Uno** <br> - 🌫 **MH-Z19B CO₂ 센서** <br> - 📡 **Bluetooth 모듈 (HC-06)** <br> - ⚙️ **Arduino IDE** (센서 데이터 처리) |
+| **소프트웨어** | - 📱 **Android Studio** (애플리케이션 개발) <br> - 🤖 **Google ML Kit** (FaceDetection 라이브러리) <br> - 🗺 **Kakao Maps API Android SDK** (사용자 위치 구현) <br> - 📍 **KakaoMap 애플리케이션** (위치 정보 표시 및 탐색) |
+| **외부 라이브러리 및 API** | - 📷 **Android Camera2 API** <br> - 🔊 **TTS 라이브러리** <br> - 🎵 **SoundPool 라이브러리** <br> - 🗺 **Kakao Maps API Android SDK** <br> - 📡 **Bluetooth API** |
+
+---
+
 ## 🔥 주요 기능
+
 ### ⭐ 실시간 졸음 감지  
 - 📷 **카메라 기반 감지** (ML Kit)  
   - 눈 깜빡임, 하품 감지를 통해 졸음운전 판단  
