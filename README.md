@@ -26,6 +26,7 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
     <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
     <img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white">
 </div>
+
 ---
 
 ## 🔥 주요 기능
