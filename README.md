@@ -24,19 +24,22 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 
 ## 📚 기술 스택
 
-<div style="display: flex; justify-content: space-between; align-items: center;">
-    <div>
-        <h3>개발 환경</h3>
-        <img src="https://img.shields.io/badge/AndroidStudio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white">
-        <img src="https://img.shields.io/badge/Github-181717?style=for-the-badge&logo=github&logoColor=white">
-    </div>
-
-    <div>
-        <h3>사용 언어</h3>
-        <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
-        <img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white">
-    </div>
-</div>
+<table>
+  <tr>
+    <th>개발 환경</th>
+    <th>사용 언어</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://img.shields.io/badge/AndroidStudio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white">
+      <img src="https://img.shields.io/badge/Github-181717?style=for-the-badge&logo=github&logoColor=white">
+    </td>
+    <td align="center">
+      <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
+      <img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white">
+    </td>
+  </tr>
+</table>
 
 ---
 
