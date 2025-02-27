@@ -1,7 +1,7 @@
 <div align="center">
     <h1>🚗 DriveGuard</h1>
     <h3>졸음운전 방지 애플리케이션</h3>
-    <p>AI 기반 졸음 감지 및 CO2 측정을 통해 안전한 운전을 돕는 프로젝트</p>
+    <p>Google MLKit 기반 졸음 감지 및 CO2 측정을 통해 안전한 운전을 돕는 프로젝트</p>
 </div>
 
 ---
