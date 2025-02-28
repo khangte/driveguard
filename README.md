@@ -4,7 +4,6 @@
     <p>Google MLKit 기반 졸음 감지 및 CO₂ 측정을 통해 안전한 운전을 돕는 프로젝트</p>
 </div>
 
----
 
 ## 📌 프로젝트 소개
 DriveGuard는 운전자의 **눈 깜빡임, 하품 감지** 및 **이산화탄소 농도 측정**을 통해 졸음운전을 예방하는 애플리케이션입니다.  
@@ -12,7 +11,6 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 졸음이 감지되면 **경고음 + TTS 음성 안내**를 제공하며,  
 카카오맵 API와 카카오맵 키워드 검색을 활용해 **가까운 휴게소 및 졸음쉼터 정보**를 제공합니다.
 
----
 
 ## 📌 시스템 흐름도
 
@@ -20,7 +18,6 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
   <img src="https://github.com/user-attachments/assets/328fd6a9-bc09-4029-8e36-554e19f39a67" width="400">
 </div>
 
----
 
 ## 📚 기술 스택
 
@@ -36,7 +33,6 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
     <img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white">
 </div>
 
----
 
 ## 🛠️ 시스템 요구사항
 
@@ -46,7 +42,6 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 | **소프트웨어** | - 📱 **Android Studio** (애플리케이션 개발) <br> - 🤖 **Google ML Kit** (FaceDetection 라이브러리) <br> - 🗺 **Kakao Maps API Android SDK** (사용자 위치 구현) <br> - 📍 **KakaoMap 애플리케이션** (위치 정보 표시 및 탐색) |
 | **외부 라이브러리 및 API** | - 📷 **Android Camera2 API** <br> - 🔊 **TTS 라이브러리** <br> - 🎵 **SoundPool 라이브러리** <br> - 🗺 **Kakao Maps API Android SDK** <br> - 📡 **Bluetooth API** |
 
----
 
 ## 🔥 주요 기능
 
@@ -62,4 +57,14 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 - 🚘 **KakaoMap API로 현재 위치 반영**  
 - 🏢 **졸음 감지 시, '휴게소' 또는 '졸음쉼터' 선택 → KakaoMap 키워드 검색으로 연결**  
 
----
+
+## 실행화면
+
+| 졸음감지 | 하품감지 | 휴게소안내 |
+| --- | --- | --- |
+| ![실행화면_졸음감지](images/실행화면_졸음감지.png) | ![실행화면_하품감지](images/실행화면_하품감지.png) | ![실행화면_휴게소안내](images/실행화면_휴게소안내.png) |
+
+
+## 아두이노 세팅
+
+![아두이노_세팅사진](images/아두이노세팅.png)
