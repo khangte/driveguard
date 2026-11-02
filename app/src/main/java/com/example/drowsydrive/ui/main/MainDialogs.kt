@@ -41,6 +41,13 @@ sealed interface MainDialog {
     data object Guide : MainDialog
     data class PermissionSettings(@StringRes val message: Int) : MainDialog
     data class SensorPicker(val sensors: List<SensorOption>) : MainDialog
+    data class LocationFailed(val action: LocationAction) : MainDialog
+}
+
+/** 실행 전에 유효한 위치가 필요한 메인 화면 동작. */
+sealed interface LocationAction {
+    data object OpenMap : LocationAction
+    data class Search(val keyword: String) : LocationAction
 }
 
 /** 경고 다이얼로그 내용. 사용자가 알람을 끄면 onStop을 호출한다. */
@@ -54,6 +61,8 @@ object MainDialogs {
         fun onBluetoothMenuSelected()
         fun onSensorSelected(address: String)
         fun onGuideKeywordSelected(keyword: String)
+        /** 위치 확인 실패 후 같은 동작을 다시 시도한다. */
+        fun onLocationRetry(action: LocationAction)
         fun onAppSettingsSelected()
         fun onExitConfirmed()
     }
@@ -85,6 +94,8 @@ internal fun MainDialogHost(state: MainScreenState, listener: MainDialogs.Listen
             dialog.message, onSettings = { close(); listener.onAppSettingsSelected() }, onDismiss = close)
         is MainDialog.SensorPicker -> SensorPickerDialog(
             dialog.sensors, onSelect = { close(); listener.onSensorSelected(it) }, onDismiss = close)
+        is MainDialog.LocationFailed -> LocationFailedDialog(
+            onRetry = { close(); listener.onLocationRetry(dialog.action) }, onDismiss = close)
         null -> Unit
     }
 }
@@ -170,6 +181,18 @@ internal fun PermissionDialog(@StringRes message: Int, onSettings: () -> Unit, o
                 Text(stringResource(R.string.dialog_settings))
             }
         },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+@Composable
+internal fun LocationFailedDialog(onRetry: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.LocationOn, null) },
+        title = { Text(stringResource(R.string.dialog_location_failed_title)) },
+        text = { Text(stringResource(R.string.dialog_location_failed_message)) },
+        confirmButton = { TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

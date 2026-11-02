@@ -20,6 +20,7 @@ class MainDialogsTest {
         override fun onBluetoothMenuSelected() {}
         override fun onSensorSelected(address: String) { events.add("sensor:$address") }
         override fun onGuideKeywordSelected(keyword: String) { events.add("guide:$keyword") }
+        override fun onLocationRetry(action: LocationAction) { events.add("retry:$action") }
         override fun onAppSettingsSelected() { events.add("settings") }
         override fun onExitConfirmed() { events.add("exit") }
     }
@@ -83,6 +84,20 @@ class MainDialogsTest {
         compose.onNodeWithText("앱을 종료할까요?").assertIsDisplayed()
         compose.onNodeWithText("아니요").performClick()
         compose.runOnIdle { assertNull(state.dialog) }
+    }
+
+    @Test
+    fun locationFailedDialogRetriesSameActionOnce() {
+        val state = MainScreenState()
+        val action = LocationAction.Search(MainDialogs.KEYWORD_REST_AREA)
+        state.showDialog(MainDialog.LocationFailed(action))
+        host(state)
+        compose.onNodeWithText("위치를 확인하지 못했어요").assertIsDisplayed()
+        compose.onNodeWithText("다시 시도").performClick()
+        compose.runOnIdle {
+            assertEquals(listOf("retry:$action"), events)
+            assertNull(state.dialog)
+        }
     }
 
     @Test

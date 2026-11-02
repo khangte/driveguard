@@ -244,7 +244,11 @@ private fun RestSection(
             Text(stringResource(R.string.main_rest_title), modifier = Modifier.weight(1f).padding(end = 12.dp),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold)
-            Text(stringResource(if (state.locationAvailable) R.string.main_location_ready else R.string.main_location_waiting),
+            Text(stringResource(when {
+                    state.locationChecking -> R.string.main_location_checking
+                    state.locationAvailable -> R.string.main_location_ready
+                    else -> R.string.main_location_waiting
+                }),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Card(onClick = onMap, shape = RoundedCornerShape(22.dp),

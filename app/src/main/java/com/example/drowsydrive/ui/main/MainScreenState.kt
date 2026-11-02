@@ -14,6 +14,9 @@ class MainScreenState {
         private set
     var locationAvailable by mutableStateOf(false)
         private set
+    /** 검색·지도 진입 전에 정밀 위치를 기다리는 중이면 true. */
+    var locationChecking by mutableStateOf(false)
+        private set
     var co2Ppm: Int? by mutableStateOf(null)
         private set
 
@@ -38,6 +41,10 @@ class MainScreenState {
 
     fun updateLocationAvailable(available: Boolean) {
         locationAvailable = available
+    }
+
+    fun updateLocationChecking(checking: Boolean) {
+        locationChecking = checking
     }
 
     fun updateCo2(ppm: Int?) {

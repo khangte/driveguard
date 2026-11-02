@@ -1,6 +1,7 @@
 package com.example.drowsydrive.alert;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.example.drowsydrive.R;
 
@@ -11,6 +12,7 @@ import java.util.EnumSet;
  * 메인 스레드에서 호출해야 한다.
  */
 public class WarningAlarmController {
+    private static final String TAG = "WarningAlarmController";
 
     public enum AlertType {
         YAWN("하품 경고", "하품이 감지되었습니다.\n졸음에 주의하세요!"),
@@ -58,11 +60,14 @@ public class WarningAlarmController {
         activeAlert = alertType;
         pendingAlerts.remove(alertType);
         long generation = ++alarmGeneration;
-        soundManager.playAlarm();
+        // 재생 자원이 준비 전이면 각 매니저가 이 경고를 보관했다가 준비 완료 시 재생한다(이전 예약은 교체됨).
+        if (!soundManager.playAlarm()) Log.w(TAG, "경고음을 재생할 수 없음: " + alertType);
         ttsManager.speak(alertType.message);
         ui.showAlarmDialog(alertType, () -> {
             if (generation != alarmGeneration || activeAlert == null) return;
+            // 초기화 전이라 예약만 된 경고음·안내는 종료된 경고이므로 취소한다.
             soundManager.stopAlarm();
+            ttsManager.cancelPending();
             activeAlert = null;
             if (alertType == AlertType.DROWSINESS || alertType == AlertType.YAWN) {
                 ui.showGuideDialog();

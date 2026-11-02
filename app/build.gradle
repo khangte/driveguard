@@ -27,7 +27,6 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "NATIVE_APP_KEY", properties["NATIVE_APP_KEY"])
-        buildConfigField("String", "REST_API_KEY", properties["REST_API_KEY"])
         // Bluetooth CO2 센서를 다시 사용할 때 true로 변경한다.
         buildConfigField("boolean", "CO2_SENSOR_ENABLED", "false")
 
@@ -56,6 +55,11 @@ android {
     }
     lint {
         lintConfig file('lint.xml')
+    }
+
+    testOptions {
+        // 로컬 단위 테스트에서 android.util.Log 등 스텁 호출이 예외 대신 기본값을 반환하게 한다.
+        unitTests.returnDefaultValues = true
     }
 }
 

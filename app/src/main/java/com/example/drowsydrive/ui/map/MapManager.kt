@@ -21,6 +21,8 @@ class MapManager(private val mapView: MapView, private val listener: Listener) {
 
     private var kakaoMap: KakaoMap? = null
     private var centerLabel: Label? = null
+    // 지도 준비 전에 받은 위치를 포함한 최신 위치. 마커 생성 시 이 값을 쓴다.
+    private var latestPosition: LatLng? = null
 
     // mapView.start()는 한 번만 호출한다.
     var isStarted = false
@@ -29,6 +31,7 @@ class MapManager(private val mapView: MapView, private val listener: Listener) {
     fun initializeMap(startPosition: LatLng, startZoomLevel: Int) {
         if (isStarted) return
         isStarted = true
+        latestPosition = startPosition
         mapView.start(object : MapLifeCycleCallback() {
             override fun onMapDestroy() {
                 Log.d(TAG, "onMapDestroy")
@@ -43,7 +46,7 @@ class MapManager(private val mapView: MapView, private val listener: Listener) {
             override fun onMapReady(map: KakaoMap) {
                 kakaoMap = map
                 listener.onMapReady()
-                addCurrentLocationLabel(startPosition)
+                addCurrentLocationLabel(latestPosition ?: startPosition)
             }
 
             override fun getPosition(): LatLng = startPosition
@@ -74,11 +77,8 @@ class MapManager(private val mapView: MapView, private val listener: Listener) {
         mapView.pause()
     }
 
-    fun onDestroy() {
-        mapView.destroyDrawingCache()
-    }
-
     fun updateLabelPosition(newPosition: LatLng) {
+        latestPosition = newPosition
         centerLabel?.moveTo(newPosition)
     }
 

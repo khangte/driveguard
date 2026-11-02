@@ -18,13 +18,14 @@ import com.example.drowsydrive.alert.WarningAlarmController
 import com.example.drowsydrive.alert.WarningAlarmController.AlertType
 import com.example.drowsydrive.detection.CameraController
 import com.example.drowsydrive.detection.FaceDetectionManager
+import com.example.drowsydrive.location.LocationFix
 import com.example.drowsydrive.location.LocationProvider
+import com.example.drowsydrive.location.LocationUpdatePolicy
 import com.example.drowsydrive.permission.PermissionManager
 import com.example.drowsydrive.sensor.BluetoothCo2Client
 import com.example.drowsydrive.sensor.Co2AlertPolicy
 import com.example.drowsydrive.ui.map.KakaoMapSearchLauncher
 import com.example.drowsydrive.ui.map.MapActivity
-import com.kakao.vectormap.LatLng
 
 class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, LocationProvider.Listener,
     BluetoothCo2Client.Listener, WarningAlarmController.Ui, MainDialogs.Listener {
@@ -38,7 +39,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     private val co2AlertPolicy = Co2AlertPolicy()
     private lateinit var warningAlarmController: WarningAlarmController
     private val screenState = MainScreenState()
-    private var currentPosition: LatLng? = null
+    private lateinit var locationGate: PreciseLocationGate<LocationAction>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,7 +47,15 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         supportActionBar?.hide()
         permissionManager = PermissionManager(this)
         faceDetectionManager = FaceDetectionManager(this, ContextCompat.getMainExecutor(this))
-        locationProvider = LocationProvider(this, this)
+        locationProvider = LocationProvider(this, this, LocationUpdatePolicy.MAIN)
+        locationGate = PreciseLocationGate(
+            nowNanos = SystemClock::elapsedRealtimeNanos,
+            requestPrecise = { requestId -> locationProvider.requestCurrentLocation(preciseLocationListener(requestId)) },
+            cancelPrecise = { locationProvider.cancelCurrentLocation() },
+            perform = ::performLocationAction,
+            onFailed = { action -> screenState.showDialog(MainDialog.LocationFailed(action)) },
+            onPendingChanged = screenState::updateLocationChecking,
+        )
         if (BuildConfig.CO2_SENSOR_ENABLED) {
             bluetoothCo2Client = BluetoothCo2Client(this)
             bluetoothDevicePicker = BluetoothDevicePicker(this)
@@ -74,7 +83,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         // 재개 시 새 분석 세션으로 시작해 중단 전 판정 상태를 이어 쓰지 않는다.
         faceDetectionManager.start()
         if (permissionManager.hasCamera()) cameraController?.startCamera()
-        if (permissionManager.hasLocation()) locationProvider.start()
+        if (permissionManager.hasLocation()) locationProvider.start() else locationGate.cancel()
         if (BuildConfig.CO2_SENSOR_ENABLED && permissionManager.hasBluetooth()) {
             bluetoothDevicePicker?.selectedDevice?.let { bluetoothCo2Client?.start(it) }
         }
@@ -82,6 +91,8 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
 
     override fun onPause() {
         if (screenState.dialog is MainDialog.SensorPicker) screenState.dismissDialog()
+        // 중단 후 늦게 도착한 정밀 위치가 검색 앱이나 지도 화면을 열지 않도록 대기 동작을 먼저 취소한다.
+        locationGate.cancel()
         locationProvider.stop()
         // 진행 중인 비동기 분석 결과가 중단 이후 판정/알람에 반영되지 않도록 세션을 먼저 끝낸다.
         faceDetectionManager.stop()
@@ -106,6 +117,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PermissionManager.REQUEST_CODE) {
             screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
+            if (!permissionManager.hasLocation()) locationGate.cancel()
             val deniedMessage = permissionManager.deniedMessageRes()
             if (deniedMessage != 0) screenState.showDialog(MainDialog.PermissionSettings(deniedMessage))
         }
@@ -141,8 +153,8 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         warningAlarmController.playWarningAlarm(AlertType.YAWN)
     }
 
-    override fun onLocationChanged(position: LatLng) {
-        currentPosition = position
+    override fun onLocationChanged(fix: LocationFix) {
+        locationGate.onContinuousLocation(fix)
         screenState.updateLocationAvailable(true)
     }
 
@@ -192,26 +204,62 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         bluetoothCo2Client = BluetoothCo2Client(this).also { it.start(device) }
     }
 
-    override fun onMapMenuSelected(): Boolean {
-        if (!(application as DriveGuardApplication).isKakaoMapAvailable) {
+    override fun onMapMenuSelected(): Boolean = requestLocationAction(LocationAction.OpenMap)
+
+    override fun onGuideKeywordSelected(keyword: String) {
+        requestLocationAction(LocationAction.Search(keyword))
+    }
+
+    override fun onLocationRetry(action: LocationAction) {
+        requestLocationAction(action)
+    }
+
+    /** 위치가 필요한 동작을 요청한다. 위치가 오래됐거나 부정확하면 정밀 위치를 받은 뒤 실행한다. */
+    private fun requestLocationAction(action: LocationAction): Boolean {
+        if (action == LocationAction.OpenMap && !(application as DriveGuardApplication).isKakaoMapAvailable) {
             Toast.makeText(this, R.string.map_native_unavailable, Toast.LENGTH_LONG).show()
             return false
         }
-        val position = currentPosition
-        if (position == null) {
-            Toast.makeText(this, "위치를 불러오는 중입니다. 잠시 후 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
+        if (!permissionManager.hasLocation()) {
+            permissionManager.requestMissingPermissions()
+            Toast.makeText(this, R.string.dialog_permission_location, Toast.LENGTH_SHORT).show()
             return false
         }
-        startActivity(
-            Intent(this, MapActivity::class.java)
-                .putExtra(MapActivity.EXTRA_LATITUDE, position.latitude)
-                .putExtra(MapActivity.EXTRA_LONGITUDE, position.longitude),
-        )
-        return true
+        return when (locationGate.request(action)) {
+            PreciseLocationGate.Result.PERFORMED, PreciseLocationGate.Result.WAITING -> true
+            PreciseLocationGate.Result.IGNORED -> {
+                if (locationGate.isPending) {
+                    Toast.makeText(this, R.string.location_checking_toast, Toast.LENGTH_SHORT).show()
+                }
+                false
+            }
+        }
     }
 
-    override fun onGuideKeywordSelected(keyword: String) {
-        KakaoMapSearchLauncher.openKakaoMapWithKeyword(this, keyword, currentPosition)
+    private fun performLocationAction(action: LocationAction, fix: LocationFix) {
+        // 화면을 떠났거나 권한을 잃은 뒤에는 외부 앱·지도 화면을 열지 않는다.
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || !permissionManager.hasLocation()) return
+        when (action) {
+            LocationAction.OpenMap -> startActivity(
+                Intent(this, MapActivity::class.java)
+                    .putExtra(MapActivity.EXTRA_LATITUDE, fix.latitude)
+                    .putExtra(MapActivity.EXTRA_LONGITUDE, fix.longitude),
+            )
+            is LocationAction.Search ->
+                KakaoMapSearchLauncher.openKakaoMapWithKeyword(this, action.keyword, fix.toLatLng())
+        }
+    }
+
+    /** 정밀 요청 번호를 붙여 결과를 게이트로 전달한다. 취소·교체된 요청의 결과는 게이트가 무시한다. */
+    private fun preciseLocationListener(requestId: Long) = object : LocationProvider.Listener {
+        override fun onLocationChanged(fix: LocationFix) {
+            locationGate.onPreciseLocation(requestId, fix)
+        }
+
+        override fun onLocationError(message: String) {
+            Log.w(TAG, "정밀 위치 요청 실패: " + message)
+            locationGate.onPreciseFailed(requestId)
+        }
     }
 
     override fun onAppSettingsSelected() {

@@ -15,7 +15,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import com.example.drowsydrive.DriveGuardApplication
 import com.example.drowsydrive.R
+import com.example.drowsydrive.location.LocationFix
 import com.example.drowsydrive.location.LocationProvider
+import com.example.drowsydrive.location.LocationUpdatePolicy
 import com.example.drowsydrive.permission.PermissionManager
 import com.example.drowsydrive.ui.main.DriveGuardTheme
 import com.kakao.vectormap.LatLng
@@ -38,14 +40,14 @@ class MapActivity : AppCompatActivity(), LocationProvider.Listener, MapManager.L
         permissionManager = PermissionManager(this)
         val sdkAvailable = (application as DriveGuardApplication).isKakaoMapAvailable
         if (sdkAvailable) {
-            locationProvider = LocationProvider(this, this)
+            locationProvider = LocationProvider(this, this, LocationUpdatePolicy.MAP)
             if (intent.hasExtra(EXTRA_LATITUDE) && intent.hasExtra(EXTRA_LONGITUDE)) {
-                onLocationChanged(LatLng.from(
+                onPositionChanged(LatLng.from(
                     intent.getDoubleExtra(EXTRA_LATITUDE, 0.0),
                     intent.getDoubleExtra(EXTRA_LONGITUDE, 0.0),
                 ))
             } else if (permissionManager.hasLocation()) {
-                locationProvider?.requestCurrentLocation()
+                locationProvider?.requestCurrentLocation(this)
             } else {
                 showError(getString(R.string.map_location_required))
             }
@@ -97,7 +99,11 @@ class MapActivity : AppCompatActivity(), LocationProvider.Listener, MapManager.L
         if (!isFinishing && !isDestroyed) showError(getString(R.string.map_load_failed))
     }
 
-    override fun onLocationChanged(position: LatLng) {
+    override fun onLocationChanged(fix: LocationFix) {
+        onPositionChanged(fix.toLatLng())
+    }
+
+    private fun onPositionChanged(position: LatLng) {
         currentPosition = position
         hasPosition = true
         val manager = mapManager ?: return
@@ -127,11 +133,6 @@ class MapActivity : AppCompatActivity(), LocationProvider.Listener, MapManager.L
         locationProvider?.stop()
         mapManager?.onPause()
         super.onPause()
-    }
-
-    override fun onDestroy() {
-        mapManager?.onDestroy()
-        super.onDestroy()
     }
 
     companion object {

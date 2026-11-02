@@ -1,7 +1,5 @@
 <resources>
     <string name="app_name">DrowsyDrive</string>
-    <string name="current_location">현재 위치</string>
-    <string name="request_guide">안내 요청</string>
     <string name="notification_sentence">휴게소/졸음쉼터를 안내할까요?</string>
     <string name="no">아니요</string>
     <string name="drowsy_shelter">졸음 쉼터</string>
@@ -28,6 +26,11 @@
     <string name="main_rest_title">잠깐의 휴식이 필요할 때</string>
     <string name="main_location_ready">위치 수신됨</string>
     <string name="main_location_waiting">위치 확인 필요</string>
+    <string name="main_location_checking">정확한 위치 확인 중</string>
+    <string name="location_checking_toast">정확한 위치를 확인하고 있어요. 잠시만 기다려주세요.</string>
+    <string name="dialog_location_failed_title">위치를 확인하지 못했어요</string>
+    <string name="dialog_location_failed_message">GPS 신호가 잘 잡히는 곳에서 다시 시도해주세요.</string>
+    <string name="retry">다시 시도</string>
     <string name="main_map_title">내 주변 지도 보기</string>
     <string name="main_map_description">현재 위치를 지도에서 확인해보세요</string>
     <string name="main_rest_area_description">여유롭게 쉬어가기</string>
