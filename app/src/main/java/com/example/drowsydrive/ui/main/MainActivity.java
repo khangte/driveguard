@@ -1,6 +1,7 @@
 package com.example.drowsydrive.ui.main;
 
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -41,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements
     private FaceDetectionManager faceDetectionManager;
     private LocationProvider locationProvider;
     private BluetoothCo2Client bluetoothCo2Client;
+    private BluetoothDevicePicker bluetoothDevicePicker;
     private final Co2AlertPolicy co2AlertPolicy = new Co2AlertPolicy();
     private WarningAlarmController warningAlarmController;
     private MainDialogs mainDialogs;
@@ -61,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements
         cameraController = new CameraController(this, cameraPreviewView, faceDetectionManager);
         locationProvider = new LocationProvider(this, this);
         bluetoothCo2Client = new BluetoothCo2Client(this);
+        bluetoothDevicePicker = new BluetoothDevicePicker(this);
         warningAlarmController = new WarningAlarmController(this, this);
         mainDialogs = new MainDialogs(this, this);
 
@@ -87,12 +90,16 @@ public class MainActivity extends AppCompatActivity implements
             locationProvider.start();
         }
         if (permissionManager.hasBluetooth()) {
-            bluetoothCo2Client.start(); // 이미 연결 중이면 무시, 끊겼으면 재연결
+            BluetoothDevice selected = bluetoothDevicePicker.getSelectedDevice();
+            if (selected != null) {
+                bluetoothCo2Client.start(selected); // 사용자가 저장한 센서에만 재연결
+            }
         }
     }
 
     @Override
     protected void onPause() {
+        bluetoothDevicePicker.dismiss();
         locationProvider.stop();
         cameraController.stopCamera();
         super.onPause();
@@ -154,7 +161,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onConnectionStateChanged(BluetoothCo2Client.State state) {
         Log.d(TAG, "블루투스 상태: " + state);
-        if (state == BluetoothCo2Client.State.DISCONNECTED) {
+        if (state != BluetoothCo2Client.State.CONNECTED) {
             co2TextView.setText("CO2: -- ppm");
         }
     }
@@ -172,6 +179,20 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     // ---- 메뉴/안내 선택 ----
+
+    @Override
+    public void onBluetoothMenuSelected() {
+        if (!permissionManager.hasBluetooth()) {
+            permissionManager.requestMissingPermissions();
+            Toast.makeText(this, R.string.bluetooth_permission_required, Toast.LENGTH_LONG).show();
+            return;
+        }
+        bluetoothDevicePicker.show(device -> {
+            bluetoothCo2Client.close();
+            bluetoothCo2Client = new BluetoothCo2Client(this);
+            bluetoothCo2Client.start(device);
+        });
+    }
 
     @Override
     public boolean onMapMenuSelected() {

@@ -1,7 +1,6 @@
 package com.example.drowsydrive.sensor;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.os.Handler;
@@ -10,11 +9,11 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
- * 페어링된 아두이노(HC-05/06 등 SPP)와의 연결/수신/종료를 담당한다.
+ * 화면에서 선택한 아두이노(HC-05/06 등 SPP)와의 연결/수신/종료만 담당한다.
  * 블로킹 연결과 수신은 작업 스레드에서 수행하고, CO2 값과 연결 상태는 메인 스레드 콜백으로 전달한다.
  * 호출 전 BLUETOOTH_CONNECT 권한(Android 12+)을 화면에서 확인해야 한다.
  */
@@ -29,7 +28,6 @@ public class BluetoothCo2Client {
         void onConnectionStateChanged(State state);
     }
 
-    private final BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Listener listener;
 
@@ -42,16 +40,12 @@ public class BluetoothCo2Client {
     }
 
     /** 연결 중이 아니면 연결을 시작한다. 이미 연결 중이거나 close() 이후면 무시한다. */
-    public synchronized void start() {
+    public synchronized void start(BluetoothDevice device) {
+        Objects.requireNonNull(device, "device");
         if (closed || worker != null) {
             return;
         }
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Log.e(TAG, "블루투스가 비활성화되어 있습니다.");
-            deliverState(State.DISCONNECTED);
-            return;
-        }
-        worker = new Thread(this::connectAndListen, TAG);
+        worker = new Thread(() -> connectAndListen(device), TAG);
         worker.start();
     }
 
@@ -73,16 +67,10 @@ public class BluetoothCo2Client {
     }
 
     @SuppressLint("MissingPermission")
-    private void connectAndListen() {
+    private void connectAndListen(BluetoothDevice device) {
         BluetoothSocket connectingSocket = null;
         try {
-            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-            if (pairedDevices == null || pairedDevices.isEmpty()) {
-                Log.e(TAG, "페어링된 블루투스 장치가 없습니다.");
-                return;
-            }
-            BluetoothDevice device = pairedDevices.iterator().next();
-            Log.d(TAG, "연결 시도 중: " + device.getName());
+            Log.d(TAG, "선택한 센서에 연결 시도 중");
             deliverState(State.CONNECTING);
 
             connectingSocket = device.createRfcommSocketToServiceRecord(SPP_UUID);
@@ -94,7 +82,7 @@ public class BluetoothCo2Client {
             }
             connectingSocket.connect();
             deliverState(State.CONNECTED);
-            Log.d(TAG, "블루투스 연결 성공: " + device.getName());
+            Log.d(TAG, "선택한 센서에 연결 성공");
 
             Co2Parser parser = new Co2Parser();
             InputStream inputStream = connectingSocket.getInputStream();

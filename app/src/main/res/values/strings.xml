@@ -8,4 +8,10 @@
     <string name="rest_area">휴게소</string>
     <string name="map">지도</string>
     <string name="menu">메뉴</string>
+    <string name="bluetooth_select_sensor">CO₂ 센서 선택</string>
+    <string name="bluetooth_connect_sensor">CO₂ 센서 연결</string>
+    <string name="bluetooth_unavailable">Bluetooth를 켠 뒤 다시 선택해주세요. 지원하지 않는 기기에서는 센서를 연결할 수 없습니다.</string>
+    <string name="bluetooth_pair_sensor_first">휴대폰 Bluetooth 설정에서 CO₂ 센서를 먼저 페어링해주세요.</string>
+    <string name="bluetooth_unnamed_device">이름 없는 장치</string>
+    <string name="bluetooth_permission_required">주변 기기 권한을 허용한 뒤 메뉴에서 CO₂ 센서 연결을 다시 선택해주세요.</string>
 </resources>

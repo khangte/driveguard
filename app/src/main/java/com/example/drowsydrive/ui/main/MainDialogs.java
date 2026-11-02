@@ -23,6 +23,8 @@ public class MainDialogs {
     public interface Listener {
         /** 메뉴에서 지도를 선택했다. 처리했으면 true를 반환해 메뉴를 닫는다. */
         boolean onMapMenuSelected();
+        /** 메뉴에서 CO2 센서 선택을 요청했다. */
+        void onBluetoothMenuSelected();
         /** 안내창에서 휴게소/졸음쉼터 검색을 선택했다. */
         void onGuideKeywordSelected(String keyword);
         /** 종료 다이얼로그에서 "예"를 선택했다. */
@@ -103,6 +105,11 @@ public class MainDialogs {
             if (listener.onMapMenuSelected() && menuDialog != null) {
                 menuDialog.dismiss();
             }
+        });
+
+        menuDialog.findViewById(R.id.bluetooth_button).setOnClickListener(view -> {
+            menuDialog.dismiss();
+            listener.onBluetoothMenuSelected();
         });
 
         menuDialog.show();
