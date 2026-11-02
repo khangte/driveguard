@@ -1,10 +1,6 @@
 package com.example.drowsydrive.ui.map;
 
-import android.content.Context;
 import android.util.Log;
-import android.view.View;
-import android.widget.ProgressBar;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
@@ -25,19 +21,22 @@ import com.kakao.vectormap.label.TrackingManager;
 public class MapManager {
     private static final String TAG = "MapManager";
 
-    private final Context context;
-    private final MapView mapView; // MapView 인스턴스
-    private final ProgressBar progressBar; // 로딩 상태를 보여주는 ProgressBar 인스턴스
+    public interface Listener {
+        void onMapReady();
+        void onMapError(Exception error);
+        void onMapDestroyed();
+    }
+
+    private final MapView mapView;
+    private final Listener listener;
     private KakaoMap kakaoMap; // KakaoMap 인스턴스
     private Label centerLabel; // 현재 위치를 표시하는 레이블
 
     private boolean started = false; // mapView.start()는 한 번만 호출한다.
 
-    // 생성자: Context, MapView, ProgressBar를 인자로 받아 초기화
-    public MapManager(Context context, MapView mapView, ProgressBar progressBar) {
-        this.context = context;
+    public MapManager(MapView mapView, Listener listener) {
         this.mapView = mapView;
-        this.progressBar = progressBar;
+        this.listener = listener;
     }
 
     // 지도를 초기화하는 메서드
@@ -48,47 +47,21 @@ public class MapManager {
             @Override
             public void onMapDestroy() {
                 Log.d(TAG, "onMapDestroy"); // 지도 파괴 로그
-                Toast.makeText(context, "Map Destroyed", Toast.LENGTH_SHORT).show(); // 지도 파괴 메시지
+                listener.onMapDestroyed();
             }
 
             @Override
             public void onMapError(Exception error) {
                 Log.e(TAG, "onMapError", error); // 오류 로그
-                Toast.makeText(context, error.getMessage(), Toast.LENGTH_SHORT).show(); // 오류 메시지 표시
+                listener.onMapError(error);
             }
         }, new KakaoMapReadyCallback() { // 지도 준비 완료 콜백 설정
             @Override
             public void onMapReady(@NonNull KakaoMap map) {
                 kakaoMap = map; // KakaoMap 인스턴스 저장
-                progressBar.setVisibility(View.GONE); // ProgressBar 숨김
+                listener.onMapReady();
 
-                // 지도 초기화 후 레이블 추가
-                if (kakaoMap != null) {
-                    LabelManager labelManager = kakaoMap.getLabelManager(); // 레이블 매니저 가져오기
-                    if (labelManager != null) {
-                        LabelLayer layer = labelManager.getLayer(); // 레이블 레이어 가져오기
-                        if (layer != null) {
-                            // 중심 레이블 추가
-                            centerLabel = layer.addLabel(LabelOptions.from("centerLabel", startPosition)
-                                    .setStyles(LabelStyle.from(R.drawable.current_location).setAnchorPoint(0.5f, 0.5f))
-                                    .setRank(1));
-                            if (centerLabel != null) {
-                                // 레이블 추적 시작
-                                TrackingManager trackingManager = kakaoMap.getTrackingManager();
-                                if (trackingManager != null) {
-                                    trackingManager.startTracking(centerLabel);
-                                }
-                            }
-                            // 카메라 이동 시작 시 추적 중지
-                            kakaoMap.setOnCameraMoveStartListener((kakaoMap, gestureType) -> {
-                                TrackingManager trackingManager = kakaoMap.getTrackingManager();
-                                if (trackingManager != null) {
-                                    trackingManager.stopTracking(); // 카메라 이동 중 추적 중지
-                                }
-                            });
-                        }
-                    }
-                }
+                addCurrentLocationLabel(startPosition);
             }
 
             @NonNull
@@ -100,6 +73,27 @@ public class MapManager {
             @Override
             public int getZoomLevel() {
                 return startZoomLevel; // 시작 줌 레벨 반환
+            }
+        });
+    }
+
+    private void addCurrentLocationLabel(LatLng position) {
+        LabelManager labelManager = kakaoMap.getLabelManager();
+        if (labelManager == null) return;
+        LabelLayer layer = labelManager.getLayer();
+        if (layer == null) return;
+
+        centerLabel = layer.addLabel(LabelOptions.from("centerLabel", position)
+                .setStyles(LabelStyle.from(R.drawable.current_location).setAnchorPoint(0.5f, 0.5f))
+                .setRank(1));
+        TrackingManager trackingManager = kakaoMap.getTrackingManager();
+        if (centerLabel != null && trackingManager != null) {
+            trackingManager.startTracking(centerLabel);
+        }
+        kakaoMap.setOnCameraMoveStartListener((map, gestureType) -> {
+            TrackingManager manager = map.getTrackingManager();
+            if (manager != null) {
+                manager.stopTracking();
             }
         });
     }

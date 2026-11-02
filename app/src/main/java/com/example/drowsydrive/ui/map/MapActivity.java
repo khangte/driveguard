@@ -1,6 +1,7 @@
 package com.example.drowsydrive.ui.map;
 
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.Toast;
@@ -15,12 +16,13 @@ import com.example.drowsydrive.permission.PermissionManager;
 import com.kakao.vectormap.LatLng;
 import com.kakao.vectormap.MapView;
 
-public class MapActivity extends AppCompatActivity implements LocationProvider.Listener {
+public class MapActivity extends AppCompatActivity implements LocationProvider.Listener, MapManager.Listener {
     public static final String EXTRA_LATITUDE = "latitude";
     public static final String EXTRA_LONGITUDE = "longitude";
     private static final int START_ZOOM_LEVEL = 17;
 
     private MapManager mapManager;
+    private ProgressBar progressBar;
     private LocationProvider locationProvider;
     private PermissionManager permissionManager;
     private LatLng currentPosition;
@@ -31,8 +33,8 @@ public class MapActivity extends AppCompatActivity implements LocationProvider.L
         setContentView(R.layout.activity_map);
 
         MapView mapView = findViewById(R.id.map_view);
-        ProgressBar progressBar = findViewById(R.id.progressBar);
-        mapManager = new MapManager(this, mapView, progressBar);
+        progressBar = findViewById(R.id.progressBar);
+        mapManager = new MapManager(mapView, this);
         locationProvider = new LocationProvider(this, this);
         permissionManager = new PermissionManager(this);
 
@@ -56,6 +58,21 @@ public class MapActivity extends AppCompatActivity implements LocationProvider.L
                 Toast.makeText(this, "위치 정보를 가져올 수 없습니다.", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    @Override
+    public void onMapReady() {
+        progressBar.setVisibility(View.GONE);
+    }
+
+    @Override
+    public void onMapError(Exception error) {
+        Toast.makeText(this, error.getMessage(), Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onMapDestroyed() {
+        Toast.makeText(this, "Map Destroyed", Toast.LENGTH_SHORT).show();
     }
 
     @Override
