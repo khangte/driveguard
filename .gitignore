@@ -59,3 +59,20 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local agent skills
+.agents/
+/skills-lock.json
+
+# Environment secrets (keep shareable templates)
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local signing configuration and certificates
+key.properties
+keystore.properties
+*.pem
+*.p12
+*.pfx
