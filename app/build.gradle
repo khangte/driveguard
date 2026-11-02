@@ -24,7 +24,7 @@ android {
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "com.example.drowsydrive.ui.main.MainScreenTestRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "NATIVE_APP_KEY", properties["NATIVE_APP_KEY"])
         buildConfigField("String", "REST_API_KEY", properties["REST_API_KEY"])
@@ -85,6 +85,7 @@ dependencies {
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core
+    androidTestImplementation libs.androidx.test.rules
 
     implementation libs.v2.all // 전체 모듈 설치, 2.11.0 버전부터 지원
     implementation libs.v2.user // 카카오 로그인 API 모듈

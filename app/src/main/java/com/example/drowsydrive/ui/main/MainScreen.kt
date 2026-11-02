@@ -33,18 +33,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.drowsydrive.BuildConfig
 import com.example.drowsydrive.R
-import java.util.function.Consumer
 
-/** Java Activity와 Compose 사이의 진입점. 카메라는 AndroidView에서 한 번 생성한다. */
+/** Activity와 Compose 사이의 진입점. 카메라는 AndroidView에서 한 번 생성한다. */
 object MainScreenUi {
-    @JvmStatic
     fun createView(
         context: Context,
         state: MainScreenState,
         listener: MainDialogs.Listener,
-        onPermissions: Runnable,
-        onExit: Runnable,
-        onPreviewReady: Consumer<PreviewView>,
+        onPermissions: () -> Unit,
+        onExit: () -> Unit,
+        onPreviewReady: (PreviewView) -> Unit,
     ): ComposeView = ComposeView(context).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
@@ -53,8 +51,8 @@ object MainScreenUi {
                     state = state,
                     onMap = { listener.onMapMenuSelected() },
                     onSearch = listener::onGuideKeywordSelected,
-                    onPermissions = onPermissions::run,
-                    onExit = onExit::run,
+                    onPermissions = onPermissions,
+                    onExit = onExit,
                     onBluetooth = listener::onBluetoothMenuSelected,
                     camera = {
                         AndroidView(
@@ -63,7 +61,7 @@ object MainScreenUi {
                                 PreviewView(viewContext).apply {
                                     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                                     scaleType = PreviewView.ScaleType.FILL_CENTER
-                                    onPreviewReady.accept(this)
+                                    onPreviewReady(this)
                                 }
                             },
                         )
