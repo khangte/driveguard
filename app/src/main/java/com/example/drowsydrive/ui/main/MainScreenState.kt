@@ -17,6 +17,14 @@ class MainScreenState {
     var co2Ppm: Int? by mutableStateOf(null)
         private set
 
+    /** 메뉴/안내/권한 다이얼로그. 한 번에 하나만 표시한다. */
+    var dialog: MainDialog? by mutableStateOf(null)
+        private set
+
+    /** 경고 다이얼로그. 다른 다이얼로그 위에 표시되며 사용자가 끌 때까지 유지된다. */
+    var alarm: AlarmAlert? by mutableStateOf(null)
+        private set
+
     fun updatePermissions(camera: Boolean, location: Boolean) {
         cameraGranted = camera
         locationGranted = location
@@ -34,5 +42,21 @@ class MainScreenState {
 
     fun updateCo2(ppm: Int?) {
         co2Ppm = ppm
+    }
+
+    fun showDialog(dialog: MainDialog) {
+        this.dialog = dialog
+    }
+
+    fun dismissDialog() {
+        dialog = null
+    }
+
+    fun showAlarm(alarm: AlarmAlert) {
+        this.alarm = alarm
+    }
+
+    fun dismissAlarm() {
+        alarm = null
     }
 }

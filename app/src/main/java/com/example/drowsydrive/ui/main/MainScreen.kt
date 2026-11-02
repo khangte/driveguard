@@ -67,6 +67,7 @@ object MainScreenUi {
                         )
                     },
                 )
+                MainDialogHost(state, listener)
             }
         }
     }

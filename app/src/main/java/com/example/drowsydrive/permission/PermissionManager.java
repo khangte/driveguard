@@ -2,17 +2,18 @@ package com.example.drowsydrive.permission;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 
+import androidx.annotation.StringRes;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.drowsydrive.BuildConfig;
+import com.example.drowsydrive.R;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,28 +67,24 @@ public class PermissionManager {
         return true;
     }
 
-    /** 필수 권한(카메라/위치)이 거부된 경우 설정 화면 이동을 안내한다. */
-    public void showDeniedDialogIfNeeded() {
-        String message;
+    /** 필수 권한(카메라/위치) 중 거부된 항목의 안내 문구를 반환한다. 모두 허용되면 0을 반환한다. */
+    @StringRes
+    public int deniedMessageRes() {
         if (!hasCamera() && !hasLocation()) {
-            message = "카메라와 위치 권한이 필요합니다. 설정으로 이동하시겠습니까?";
+            return R.string.dialog_permission_camera_location;
         } else if (!hasCamera()) {
-            message = "카메라 권한이 필요합니다. 설정으로 이동하시겠습니까?";
+            return R.string.dialog_permission_camera;
         } else if (!hasLocation()) {
-            message = "위치 권한이 필요합니다. 설정으로 이동하시겠습니까?";
-        } else {
-            return;
+            return R.string.dialog_permission_location;
         }
-        new AlertDialog.Builder(activity)
-                .setMessage(message)
-                .setPositiveButton("설정", (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    intent.setData(Uri.fromParts("package", activity.getPackageName(), null));
-                    activity.startActivity(intent);
-                })
-                .setNegativeButton("취소", (dialog, which) -> dialog.dismiss())
-                .setCancelable(false)
-                .show();
+        return 0;
+    }
+
+    /** 앱 상세 설정 화면을 연다. */
+    public void openAppSettings() {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        intent.setData(Uri.fromParts("package", activity.getPackageName(), null));
+        activity.startActivity(intent);
     }
 
     private boolean isGranted(String permission) {

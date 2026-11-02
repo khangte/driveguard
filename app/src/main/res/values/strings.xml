@@ -6,7 +6,6 @@
     <string name="no">아니요</string>
     <string name="drowsy_shelter">졸음 쉼터</string>
     <string name="rest_area">휴게소</string>
-    <string name="map">지도</string>
     <string name="menu">메뉴</string>
     <string name="bluetooth_select_sensor">CO₂ 센서 선택</string>
     <string name="bluetooth_connect_sensor">CO₂ 센서 연결</string>
@@ -43,4 +42,22 @@
     <string name="main_co2_waiting">센서 연결 대기</string>
     <string name="main_safety_note">운전 중에는 화면 조작을 삼가주세요. 피곤할 땐 안전한 곳에 정차하고 충분히 쉬어주세요.</string>
     <string name="map_native_unavailable">이 실행 환경에서는 카카오맵 라이브러리를 불러올 수 없습니다. 지원되는 실기기에서 지도를 확인해주세요.</string>
+    <string name="yes">예</string>
+    <string name="cancel">취소</string>
+    <string name="dialog_exit_title">앱을 종료할까요?</string>
+    <string name="dialog_exit_message">종료하면 졸음 감지와 경고가 중단됩니다.</string>
+    <string name="dialog_guide_title">잠시 쉬어가세요</string>
+    <string name="dialog_alarm_stop">알람 끄기</string>
+    <string name="dialog_permission_title">권한이 필요합니다</string>
+    <string name="dialog_permission_camera_location">카메라와 위치 권한이 필요합니다. 설정으로 이동하시겠습니까?</string>
+    <string name="dialog_permission_camera">카메라 권한이 필요합니다. 설정으로 이동하시겠습니까?</string>
+    <string name="dialog_permission_location">위치 권한이 필요합니다. 설정으로 이동하시겠습니까?</string>
+    <string name="dialog_settings">설정</string>
+    <string name="map_screen_title">내 주변 지도</string>
+    <string name="map_back">돌아가기</string>
+    <string name="map_return_to_location">내 위치로</string>
+    <string name="map_loading">위치와 지도를 불러오는 중입니다</string>
+    <string name="map_error_title">지도를 표시할 수 없어요</string>
+    <string name="map_load_failed">지도 연결에 실패했습니다. 네트워크와 지도 설정을 확인한 후 다시 열어주세요.</string>
+    <string name="map_location_required">메인 화면에서 위치 권한을 허용한 뒤 지도를 다시 열어주세요.</string>
 </resources>

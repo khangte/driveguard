@@ -21,7 +21,6 @@ import com.example.drowsydrive.location.LocationProvider
 import com.example.drowsydrive.permission.PermissionManager
 import com.example.drowsydrive.sensor.BluetoothCo2Client
 import com.example.drowsydrive.sensor.Co2AlertPolicy
-import com.example.drowsydrive.ui.dialog.AlarmDialog
 import com.example.drowsydrive.ui.map.KakaoMapSearchLauncher
 import com.example.drowsydrive.ui.map.MapActivity
 import com.kakao.vectormap.LatLng
@@ -37,7 +36,6 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     private var bluetoothDevicePicker: BluetoothDevicePicker? = null
     private val co2AlertPolicy = Co2AlertPolicy()
     private lateinit var warningAlarmController: WarningAlarmController
-    private lateinit var mainDialogs: MainDialogs
     private val screenState = MainScreenState()
     private var currentPosition: LatLng? = null
 
@@ -53,17 +51,16 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
             bluetoothDevicePicker = BluetoothDevicePicker(this)
         }
         warningAlarmController = WarningAlarmController(this, this)
-        mainDialogs = MainDialogs(this, this)
         screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
         setContentView(
             MainScreenUi.createView(
                 this, screenState, this, ::requestScreenPermissions,
-                mainDialogs::showExitDialog, ::onPreviewReady,
+                ::showExitDialog, ::onPreviewReady,
             ),
         )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                mainDialogs.showExitDialog()
+                showExitDialog()
             }
         })
         // 권한이 모두 있으면 onResume에서 바로 기능을 시작한다.
@@ -81,7 +78,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     }
 
     override fun onPause() {
-        bluetoothDevicePicker?.dismiss()
+        if (screenState.dialog is MainDialog.SensorPicker) screenState.dismissDialog()
         locationProvider.stop()
         cameraController?.stopCamera()
         screenState.updateCameraStreaming(false)
@@ -103,7 +100,8 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PermissionManager.REQUEST_CODE) {
             screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
-            permissionManager.showDeniedDialogIfNeeded()
+            val deniedMessage = permissionManager.deniedMessageRes()
+            if (deniedMessage != 0) screenState.showDialog(MainDialog.PermissionSettings(deniedMessage))
         }
     }
 
@@ -115,6 +113,10 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && permissionManager.hasCamera()) {
             cameraController?.startCamera()
         }
+    }
+
+    private fun showExitDialog() {
+        screenState.showDialog(MainDialog.Exit)
     }
 
     private fun requestScreenPermissions() {
@@ -155,11 +157,11 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     }
 
     override fun showAlarmDialog(alertType: AlertType, onStop: Runnable) {
-        AlarmDialog.show(this, alertType.title, alertType.message, onStop)
+        screenState.showAlarm(AlarmAlert(alertType.title, alertType.message, onStop::run))
     }
 
     override fun showGuideDialog() {
-        mainDialogs.showGuideDialog()
+        screenState.showDialog(MainDialog.Guide)
     }
 
     override fun onBluetoothMenuSelected() {
@@ -169,10 +171,17 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
             Toast.makeText(this, R.string.bluetooth_permission_required, Toast.LENGTH_LONG).show()
             return
         }
-        bluetoothDevicePicker?.show { device ->
-            bluetoothCo2Client?.close()
-            bluetoothCo2Client = BluetoothCo2Client(this).also { it.start(device) }
+        bluetoothDevicePicker?.pairedSensors()?.let { screenState.showDialog(MainDialog.SensorPicker(it)) }
+    }
+
+    override fun onSensorSelected(address: String) {
+        val device = bluetoothDevicePicker?.select(address)
+        if (device == null) {
+            Toast.makeText(this, R.string.bluetooth_pair_sensor_first, Toast.LENGTH_LONG).show()
+            return
         }
+        bluetoothCo2Client?.close()
+        bluetoothCo2Client = BluetoothCo2Client(this).also { it.start(device) }
     }
 
     override fun onMapMenuSelected(): Boolean {
@@ -195,6 +204,10 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
 
     override fun onGuideKeywordSelected(keyword: String) {
         KakaoMapSearchLauncher.openKakaoMapWithKeyword(this, keyword, currentPosition)
+    }
+
+    override fun onAppSettingsSelected() {
+        permissionManager.openAppSettings()
     }
 
     override fun onExitConfirmed() {
