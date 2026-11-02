@@ -9,6 +9,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import com.example.drowsydrive.BuildConfig
 import com.example.drowsydrive.DriveGuardApplication
@@ -44,7 +45,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         enableEdgeToEdge()
         supportActionBar?.hide()
         permissionManager = PermissionManager(this)
-        faceDetectionManager = FaceDetectionManager(this)
+        faceDetectionManager = FaceDetectionManager(this, ContextCompat.getMainExecutor(this))
         locationProvider = LocationProvider(this, this)
         if (BuildConfig.CO2_SENSOR_ENABLED) {
             bluetoothCo2Client = BluetoothCo2Client(this)
@@ -70,6 +71,8 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     override fun onResume() {
         super.onResume()
         screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
+        // 재개 시 새 분석 세션으로 시작해 중단 전 판정 상태를 이어 쓰지 않는다.
+        faceDetectionManager.start()
         if (permissionManager.hasCamera()) cameraController?.startCamera()
         if (permissionManager.hasLocation()) locationProvider.start()
         if (BuildConfig.CO2_SENSOR_ENABLED && permissionManager.hasBluetooth()) {
@@ -80,6 +83,8 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     override fun onPause() {
         if (screenState.dialog is MainDialog.SensorPicker) screenState.dismissDialog()
         locationProvider.stop()
+        // 진행 중인 비동기 분석 결과가 중단 이후 판정/알람에 반영되지 않도록 세션을 먼저 끝낸다.
+        faceDetectionManager.stop()
         cameraController?.stopCamera()
         screenState.updateCameraStreaming(false)
         super.onPause()
@@ -87,6 +92,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
 
     override fun onDestroy() {
         bluetoothCo2Client?.close()
+        cameraController?.stopCamera()
         faceDetectionManager.close()
         warningAlarmController.release()
         super.onDestroy()
@@ -106,7 +112,9 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     }
 
     private fun onPreviewReady(previewView: PreviewView) {
-        cameraController = CameraController(this, previewView, faceDetectionManager)
+        cameraController = CameraController(
+            this, previewView, faceDetectionManager, faceDetectionManager.analysisExecutor,
+        )
         previewView.previewStreamState.observe(this) { state ->
             screenState.updateCameraStreaming(state == PreviewView.StreamState.STREAMING)
         }

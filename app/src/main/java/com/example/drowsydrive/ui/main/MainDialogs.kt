@@ -69,7 +69,12 @@ private val Blocking = DialogProperties(dismissOnBackPress = false, dismissOnCli
 internal fun MainDialogHost(state: MainScreenState, listener: MainDialogs.Listener) {
     val alarm = state.alarm
     if (alarm != null) {
-        AlarmDialog(alarm.title, alarm.message, onStop = { state.dismissAlarm(); alarm.onStop() })
+        AlarmDialog(alarm.title, alarm.message, onStop = {
+            if (state.alarm === alarm) {
+                state.dismissAlarm()
+                alarm.onStop()
+            }
+        })
         return
     }
     val close = state::dismissDialog

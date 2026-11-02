@@ -4,6 +4,8 @@ import android.content.Context;
 
 import com.example.drowsydrive.R;
 
+import java.util.EnumSet;
+
 /**
  * 경고음/TTS 흐름을 담당하고, 다이얼로그/안내창 표시는 Ui 콜백으로 화면에 요청한다.
  * 메인 스레드에서 호출해야 한다.
@@ -34,7 +36,9 @@ public class WarningAlarmController {
     private final SoundManager soundManager;
     private final TTSManager ttsManager;
     private final Ui ui;
-    private boolean alarmActive = false; // 경고 다이얼로그가 떠 있는 동안 중복 경고를 막는다.
+    private AlertType activeAlert;
+    private final EnumSet<AlertType> pendingAlerts = EnumSet.noneOf(AlertType.class);
+    private long alarmGeneration = 0;
 
     public WarningAlarmController(Context context, Ui ui) {
         this.ui = ui;
@@ -43,21 +47,38 @@ public class WarningAlarmController {
     }
 
     public void playWarningAlarm(AlertType alertType) {
-        if (alarmActive) return;
-        alarmActive = true;
-
+        if (activeAlert == alertType) return;
+        if (activeAlert != null && alertType != AlertType.DROWSINESS) {
+            // 판정기는 에피소드당 한 번만 통지하므로 겹친 경고를 버리지 않는다.
+            pendingAlerts.add(alertType);
+            return;
+        }
+        // 졸음 경고는 현재 표시 중인 하품/CO2 경고보다 우선한다.
+        if (activeAlert != null) soundManager.stopAlarm();
+        activeAlert = alertType;
+        pendingAlerts.remove(alertType);
+        long generation = ++alarmGeneration;
         soundManager.playAlarm();
         ttsManager.speak(alertType.message);
         ui.showAlarmDialog(alertType, () -> {
+            if (generation != alarmGeneration || activeAlert == null) return;
             soundManager.stopAlarm();
-            alarmActive = false;
+            activeAlert = null;
             if (alertType == AlertType.DROWSINESS || alertType == AlertType.YAWN) {
                 ui.showGuideDialog();
+            }
+            if (!pendingAlerts.isEmpty()) {
+                AlertType next = pendingAlerts.contains(AlertType.CO2)
+                        ? AlertType.CO2 : pendingAlerts.iterator().next();
+                playWarningAlarm(next);
             }
         });
     }
 
     public void release() {
+        ++alarmGeneration;
+        activeAlert = null;
+        pendingAlerts.clear();
         soundManager.release();
         ttsManager.shutdown();
     }

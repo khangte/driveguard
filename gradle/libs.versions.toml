@@ -16,7 +16,6 @@ appcompat = "1.7.0"
 material = "1.12.0"
 cameraCore = "1.4.0"
 playServicesLocation = "21.3.0"
-v2All = "2.20.6"
 
 [libraries]
 androidx-test-rules = { module = "androidx.test:rules", version.ref = "testRules" }
@@ -34,13 +33,6 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraCore" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
-v2-all = { module = "com.kakao.sdk:v2-all", version.ref = "v2All" }
-v2-cert = { module = "com.kakao.sdk:v2-cert", version.ref = "v2All" }
-v2-friend = { module = "com.kakao.sdk:v2-friend", version.ref = "v2All" }
-v2-navi = { module = "com.kakao.sdk:v2-navi", version.ref = "v2All" }
-v2-share = { module = "com.kakao.sdk:v2-share", version.ref = "v2All" }
-v2-talk = { module = "com.kakao.sdk:v2-talk", version.ref = "v2All" }
-v2-user = { module = "com.kakao.sdk:v2-user", version.ref = "v2All" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-icons = { module = "androidx.compose.material:material-icons-core" }
