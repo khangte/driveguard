@@ -1,4 +1,4 @@
-package com.example.drowsydrive.mlkit;
+package com.example.drowsydrive.detection;
 
 import android.content.Context;
 import android.util.Log;

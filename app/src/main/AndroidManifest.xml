@@ -13,13 +13,13 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/> <!-- 대략적인 위치 권한 -->
     <uses-permission android:name="android.permission.CAMERA" />                <!-- 카메라 권한 추가 -->
     <uses-permission android:name="android.permission.ACCESS_AUDIO_SETTINGS" /> <!-- 오디오 권한 -->
-    <uses-permission android:name="android.permission.BLUETOOTH"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 
     <application
-        android:name=".kakaomap.MapApplication"
+        android:name=".DriveGuardApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -36,22 +36,14 @@
             android:value="${KAKAO_APP_KEY}" />
 
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.main.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ui.MapActivity" />
-
-        <!-- Foreground Service 등록 -->
-        <service
-            android:name=".mlkit.FaceDetectionManager"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="camera|location"
-            tools:ignore="Instantiatable" />
+        <activity android:name=".ui.map.MapActivity" />
     </application>
 
 </manifest>
