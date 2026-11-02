@@ -2,19 +2,14 @@ package com.example.drowsydrive.ui.main;
 
 import android.app.Activity;
 import android.app.Dialog;
-import android.view.Gravity;
-import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.Button;
 
 import androidx.appcompat.app.AlertDialog;
 
-import com.example.drowsydrive.BuildConfig;
 import com.example.drowsydrive.R;
 
 /**
- * MainActivity의 메뉴/안내/종료 다이얼로그 표시만 담당하고, 사용자 선택은 Listener로 전달한다.
+ * 안내/종료 다이얼로그를 표시하고, 사용자 선택은 Listener로 전달한다.
  * 위치 조회와 화면 이동은 Activity가 처리한다.
  */
 public class MainDialogs {
@@ -34,7 +29,6 @@ public class MainDialogs {
 
     private final Activity activity;
     private final Listener listener;
-    private Dialog menuDialog;
 
     public MainDialogs(Activity activity, Listener listener) {
         this.activity = activity;
@@ -74,47 +68,4 @@ public class MainDialogs {
         dialog.show();
     }
 
-    /** 메뉴 다이얼로그 토글 */
-    public void toggleMenuDialog(View anchorView) {
-        if (menuDialog != null && menuDialog.isShowing()) {
-            menuDialog.dismiss();
-            menuDialog = null;
-        } else {
-            showMenuDialog(anchorView);
-        }
-    }
-
-    private void showMenuDialog(View anchorView) {
-        menuDialog = new Dialog(activity);
-        menuDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        menuDialog.setContentView(R.layout.menu_dialog);
-        menuDialog.setCanceledOnTouchOutside(true);
-
-        Window window = menuDialog.getWindow();
-        if (window != null) {
-            WindowManager.LayoutParams params = window.getAttributes();
-            int[] location = new int[2];
-            anchorView.getLocationOnScreen(location); // FAB 버튼의 위치 가져오기
-            params.gravity = Gravity.TOP | Gravity.START;
-            params.x = location[0];
-            params.y = location[1] - anchorView.getHeight() - 300; // FAB 위쪽으로 다이얼로그 위치 조정
-            window.setAttributes(params);
-        }
-
-        Button mapButton = menuDialog.findViewById(R.id.map_button);
-        mapButton.setOnClickListener(view -> {
-            if (listener.onMapMenuSelected() && menuDialog != null) {
-                menuDialog.dismiss();
-            }
-        });
-
-        View bluetoothButton = menuDialog.findViewById(R.id.bluetooth_button);
-        bluetoothButton.setVisibility(BuildConfig.CO2_SENSOR_ENABLED ? View.VISIBLE : View.GONE);
-        bluetoothButton.setOnClickListener(view -> {
-            menuDialog.dismiss();
-            listener.onBluetoothMenuSelected();
-        });
-
-        menuDialog.show();
-    }
 }

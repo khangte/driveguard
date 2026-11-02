@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.drowsydrive.R;
+import com.example.drowsydrive.DriveGuardApplication;
 import com.example.drowsydrive.location.LocationProvider;
 import com.example.drowsydrive.permission.PermissionManager;
 import com.kakao.vectormap.LatLng;
@@ -30,6 +31,11 @@ public class MapActivity extends AppCompatActivity implements LocationProvider.L
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!((DriveGuardApplication) getApplication()).isKakaoMapAvailable()) {
+            Toast.makeText(this, R.string.map_native_unavailable, Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
         setContentView(R.layout.activity_map);
 
         MapView mapView = findViewById(R.id.map_view);
@@ -93,6 +99,7 @@ public class MapActivity extends AppCompatActivity implements LocationProvider.L
     @Override
     protected void onResume() {
         super.onResume();
+        if (mapManager == null) return;
         mapManager.onResume();
         if (permissionManager.hasLocation()) {
             locationProvider.start();
@@ -101,14 +108,14 @@ public class MapActivity extends AppCompatActivity implements LocationProvider.L
 
     @Override
     protected void onPause() {
-        locationProvider.stop();
-        mapManager.onPause();
+        if (locationProvider != null) locationProvider.stop();
+        if (mapManager != null) mapManager.onPause();
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
-        mapManager.onDestroy();
+        if (mapManager != null) mapManager.onDestroy();
         super.onDestroy();
     }
 }

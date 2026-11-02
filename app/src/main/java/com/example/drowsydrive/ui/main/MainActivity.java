@@ -1,22 +1,22 @@
 package com.example.drowsydrive.ui.main;
 
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.lifecycle.Lifecycle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.view.PreviewView;
 
 import com.example.drowsydrive.BuildConfig;
+import com.example.drowsydrive.DriveGuardApplication;
 import com.example.drowsydrive.R;
 import com.example.drowsydrive.alert.WarningAlarmController;
 import com.example.drowsydrive.alert.WarningAlarmController.AlertType;
@@ -49,21 +49,17 @@ public class MainActivity extends AppCompatActivity implements
     private WarningAlarmController warningAlarmController;
     private MainDialogs mainDialogs;
 
-    private TextView co2TextView;
+    private final MainScreenState screenState = new MainScreenState();
     private LatLng currentPosition; // 최근 수신한 현재 위치
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        PreviewView cameraPreviewView = findViewById(R.id.camera_preview);
-        co2TextView = findViewById(R.id.co2_text);
-        co2TextView.setVisibility(BuildConfig.CO2_SENSOR_ENABLED ? View.VISIBLE : View.GONE);
+        EdgeToEdge.enable(this);
+        if (getSupportActionBar() != null) getSupportActionBar().hide();
 
         permissionManager = new PermissionManager(this);
         faceDetectionManager = new FaceDetectionManager(this);
-        cameraController = new CameraController(this, cameraPreviewView, faceDetectionManager);
         locationProvider = new LocationProvider(this, this);
         if (BuildConfig.CO2_SENSOR_ENABLED) {
             bluetoothCo2Client = new BluetoothCo2Client(this);
@@ -72,7 +68,9 @@ public class MainActivity extends AppCompatActivity implements
         warningAlarmController = new WarningAlarmController(this, this);
         mainDialogs = new MainDialogs(this, this);
 
-        findViewById(R.id.fab_menu).setOnClickListener(mainDialogs::toggleMenuDialog);
+        screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation());
+        setContentView(MainScreenUi.createView(this, screenState, this,
+                this::requestScreenPermissions, mainDialogs::showExitDialog, this::onPreviewReady));
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -88,7 +86,8 @@ public class MainActivity extends AppCompatActivity implements
     protected void onResume() {
         super.onResume();
         // 권한 요청 결과 이후와 설정 화면에서 돌아온 경우 모두 onResume이 호출되므로 여기서 기능을 시작한다.
-        if (permissionManager.hasCamera()) {
+        screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation());
+        if (cameraController != null && permissionManager.hasCamera()) {
             cameraController.startCamera();
         }
         if (permissionManager.hasLocation()) {
@@ -108,7 +107,8 @@ public class MainActivity extends AppCompatActivity implements
             bluetoothDevicePicker.dismiss();
         }
         locationProvider.stop();
-        cameraController.stopCamera();
+        if (cameraController != null) cameraController.stopCamera();
+        screenState.updateCameraStreaming(false);
         super.onPause();
     }
 
@@ -127,7 +127,24 @@ public class MainActivity extends AppCompatActivity implements
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PermissionManager.REQUEST_CODE) {
+            screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation());
             permissionManager.showDeniedDialogIfNeeded();
+        }
+    }
+
+    private void onPreviewReady(PreviewView previewView) {
+        cameraController = new CameraController(this, previewView, faceDetectionManager);
+        previewView.getPreviewStreamState().observe(this, state ->
+                screenState.updateCameraStreaming(state == PreviewView.StreamState.STREAMING));
+        if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)
+                && permissionManager.hasCamera()) {
+            cameraController.startCamera();
+        }
+    }
+
+    private void requestScreenPermissions() {
+        if (!permissionManager.requestMissingPermissions()) {
+            Toast.makeText(this, R.string.main_permissions_granted, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -148,31 +165,31 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onLocationChanged(@NonNull LatLng position) {
         currentPosition = position;
+        screenState.updateLocationAvailable(true);
     }
 
     @Override
     public void onLocationError(@NonNull String message) {
+        screenState.updateLocationAvailable(false);
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
     // ---- CO2 센서 ----
 
-    @SuppressLint("SetTextI18n")
     @Override
     public void onCo2Received(int co2Ppm) {
         if (!BuildConfig.CO2_SENSOR_ENABLED) return;
-        co2TextView.setText("CO2: " + co2Ppm + " ppm");
+        screenState.updateCo2(co2Ppm);
         if (co2AlertPolicy.shouldAlert(co2Ppm, SystemClock.elapsedRealtime())) {
             warningAlarmController.playWarningAlarm(AlertType.CO2);
         }
     }
 
-    @SuppressLint("SetTextI18n")
     @Override
     public void onConnectionStateChanged(BluetoothCo2Client.State state) {
         Log.d(TAG, "블루투스 상태: " + state);
         if (state != BluetoothCo2Client.State.CONNECTED) {
-            co2TextView.setText("CO2: -- ppm");
+            screenState.updateCo2(null);
         }
     }
 
@@ -207,6 +224,10 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public boolean onMapMenuSelected() {
+        if (!((DriveGuardApplication) getApplication()).isKakaoMapAvailable()) {
+            Toast.makeText(this, R.string.map_native_unavailable, Toast.LENGTH_LONG).show();
+            return false;
+        }
         if (currentPosition == null) {
             Toast.makeText(this, "위치를 불러오는 중입니다. 잠시 후 다시 시도해주세요.", Toast.LENGTH_SHORT).show();
             return false;
