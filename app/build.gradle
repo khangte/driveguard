@@ -44,14 +44,13 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    lintOptions {
-        // deprecated API 경고를 활성화
-        lintConfig rootProject.file("lint.xml")
-    }
 
     packaging {
         resources {
         }
+    }
+    lint {
+        lintConfig file('lint.xml')
     }
 }
 
@@ -61,7 +60,6 @@ dependencies {
     implementation libs.androidx.core.ktx
     implementation libs.androidx.appcompat
     implementation libs.material
-    implementation libs.androidx.camera.core
     implementation libs.androidx.ui.graphics.android
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
