@@ -1,4 +1,4 @@
-package com.example.drowsydrive.notification;
+package com.example.drowsydrive.alert;
 
 import android.content.Context;
 import android.speech.tts.TextToSpeech;

@@ -1,5 +1,6 @@
-package com.example.drowsydrive.kakaomap;
+package com.example.drowsydrive.ui.map;
 
+import android.content.Context;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -8,7 +9,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import com.example.drowsydrive.R;
-import com.example.drowsydrive.ui.MapActivity;
 import com.kakao.vectormap.KakaoMap;
 import com.kakao.vectormap.KakaoMapReadyCallback;
 import com.kakao.vectormap.LatLng;
@@ -25,32 +25,36 @@ import com.kakao.vectormap.label.TrackingManager;
 public class MapManager {
     private static final String TAG = "MapManager";
 
-    private final MapActivity mapActivity; // MainActivity 인스턴스
-    protected final MapView mapView; // MapView 인스턴스
+    private final Context context;
+    private final MapView mapView; // MapView 인스턴스
     private final ProgressBar progressBar; // 로딩 상태를 보여주는 ProgressBar 인스턴스
     private KakaoMap kakaoMap; // KakaoMap 인스턴스
     private Label centerLabel; // 현재 위치를 표시하는 레이블
 
-    // 생성자: MainActivity, MapView, ProgressBar를 인자로 받아 초기화
-    public MapManager(MapActivity mapActivity, MapView mapView, ProgressBar progressBar) {
-        this.mapActivity = mapActivity;
+    private boolean started = false; // mapView.start()는 한 번만 호출한다.
+
+    // 생성자: Context, MapView, ProgressBar를 인자로 받아 초기화
+    public MapManager(Context context, MapView mapView, ProgressBar progressBar) {
+        this.context = context;
         this.mapView = mapView;
         this.progressBar = progressBar;
     }
 
     // 지도를 초기화하는 메서드
     public void initializeMap(LatLng startPosition, int startZoomLevel) {
+        if (started) return;
+        started = true;
         mapView.start(new MapLifeCycleCallback() { // 지도 생명주기 콜백 설정
             @Override
             public void onMapDestroy() {
                 Log.d(TAG, "onMapDestroy"); // 지도 파괴 로그
-                Toast.makeText(mapActivity, "Map Destroyed", Toast.LENGTH_SHORT).show(); // 지도 파괴 메시지
+                Toast.makeText(context, "Map Destroyed", Toast.LENGTH_SHORT).show(); // 지도 파괴 메시지
             }
 
             @Override
             public void onMapError(Exception error) {
                 Log.e(TAG, "onMapError", error); // 오류 로그
-                Toast.makeText(mapActivity, error.getMessage(), Toast.LENGTH_SHORT).show(); // 오류 메시지 표시
+                Toast.makeText(context, error.getMessage(), Toast.LENGTH_SHORT).show(); // 오류 메시지 표시
             }
         }, new KakaoMapReadyCallback() { // 지도 준비 완료 콜백 설정
             @Override
@@ -85,7 +89,6 @@ public class MapManager {
                         }
                     }
                 }
-                mapActivity.locationManager.startLocationUpdates(); // 위치 업데이트 시작
             }
 
             @NonNull
@@ -99,6 +102,10 @@ public class MapManager {
                 return startZoomLevel; // 시작 줌 레벨 반환
             }
         });
+    }
+
+    public boolean isStarted() {
+        return started;
     }
 
     public void onResume() {
