@@ -25,6 +25,8 @@ android {
 
         buildConfigField("String", "NATIVE_APP_KEY", properties["NATIVE_APP_KEY"])
         buildConfigField("String", "REST_API_KEY", properties["REST_API_KEY"])
+        // Bluetooth CO2 센서를 다시 사용할 때 true로 변경한다.
+        buildConfigField("boolean", "CO2_SENSOR_ENABLED", "false")
 
         // Manifest에 전달할 변수 설정
         manifestPlaceholders = [

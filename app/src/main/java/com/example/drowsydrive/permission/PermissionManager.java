@@ -12,6 +12,8 @@ import android.provider.Settings;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.drowsydrive.BuildConfig;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,7 +56,7 @@ public class PermissionManager {
             missing.add(Manifest.permission.ACCESS_FINE_LOCATION);
             missing.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         }
-        if (!hasBluetooth()) {
+        if (BuildConfig.CO2_SENSOR_ENABLED && !hasBluetooth()) {
             missing.add(Manifest.permission.BLUETOOTH_CONNECT);
         }
         if (missing.isEmpty()) {

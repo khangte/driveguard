@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -15,6 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.view.PreviewView;
 
+import com.example.drowsydrive.BuildConfig;
 import com.example.drowsydrive.R;
 import com.example.drowsydrive.alert.WarningAlarmController;
 import com.example.drowsydrive.alert.WarningAlarmController.AlertType;
@@ -57,13 +59,16 @@ public class MainActivity extends AppCompatActivity implements
 
         PreviewView cameraPreviewView = findViewById(R.id.camera_preview);
         co2TextView = findViewById(R.id.co2_text);
+        co2TextView.setVisibility(BuildConfig.CO2_SENSOR_ENABLED ? View.VISIBLE : View.GONE);
 
         permissionManager = new PermissionManager(this);
         faceDetectionManager = new FaceDetectionManager(this);
         cameraController = new CameraController(this, cameraPreviewView, faceDetectionManager);
         locationProvider = new LocationProvider(this, this);
-        bluetoothCo2Client = new BluetoothCo2Client(this);
-        bluetoothDevicePicker = new BluetoothDevicePicker(this);
+        if (BuildConfig.CO2_SENSOR_ENABLED) {
+            bluetoothCo2Client = new BluetoothCo2Client(this);
+            bluetoothDevicePicker = new BluetoothDevicePicker(this);
+        }
         warningAlarmController = new WarningAlarmController(this, this);
         mainDialogs = new MainDialogs(this, this);
 
@@ -89,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements
         if (permissionManager.hasLocation()) {
             locationProvider.start();
         }
-        if (permissionManager.hasBluetooth()) {
+        if (BuildConfig.CO2_SENSOR_ENABLED && permissionManager.hasBluetooth()) {
             BluetoothDevice selected = bluetoothDevicePicker.getSelectedDevice();
             if (selected != null) {
                 bluetoothCo2Client.start(selected); // 사용자가 저장한 센서에만 재연결
@@ -99,7 +104,9 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onPause() {
-        bluetoothDevicePicker.dismiss();
+        if (bluetoothDevicePicker != null) {
+            bluetoothDevicePicker.dismiss();
+        }
         locationProvider.stop();
         cameraController.stopCamera();
         super.onPause();
@@ -107,7 +114,9 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     protected void onDestroy() {
-        bluetoothCo2Client.close();
+        if (bluetoothCo2Client != null) {
+            bluetoothCo2Client.close();
+        }
         faceDetectionManager.close();
         warningAlarmController.release();
         super.onDestroy();
@@ -151,6 +160,7 @@ public class MainActivity extends AppCompatActivity implements
     @SuppressLint("SetTextI18n")
     @Override
     public void onCo2Received(int co2Ppm) {
+        if (!BuildConfig.CO2_SENSOR_ENABLED) return;
         co2TextView.setText("CO2: " + co2Ppm + " ppm");
         if (co2AlertPolicy.shouldAlert(co2Ppm, SystemClock.elapsedRealtime())) {
             warningAlarmController.playWarningAlarm(AlertType.CO2);
@@ -182,6 +192,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onBluetoothMenuSelected() {
+        if (!BuildConfig.CO2_SENSOR_ENABLED) return;
         if (!permissionManager.hasBluetooth()) {
             permissionManager.requestMissingPermissions();
             Toast.makeText(this, R.string.bluetooth_permission_required, Toast.LENGTH_LONG).show();

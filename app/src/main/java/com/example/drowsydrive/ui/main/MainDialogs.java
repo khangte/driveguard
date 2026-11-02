@@ -10,6 +10,7 @@ import android.widget.Button;
 
 import androidx.appcompat.app.AlertDialog;
 
+import com.example.drowsydrive.BuildConfig;
 import com.example.drowsydrive.R;
 
 /**
@@ -107,7 +108,9 @@ public class MainDialogs {
             }
         });
 
-        menuDialog.findViewById(R.id.bluetooth_button).setOnClickListener(view -> {
+        View bluetoothButton = menuDialog.findViewById(R.id.bluetooth_button);
+        bluetoothButton.setVisibility(BuildConfig.CO2_SENSOR_ENABLED ? View.VISIBLE : View.GONE);
+        bluetoothButton.setOnClickListener(view -> {
             menuDialog.dismiss();
             listener.onBluetoothMenuSelected();
         });
