@@ -1,6 +1,7 @@
 package com.example.drowsydrive.ui.main
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
@@ -11,12 +12,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import com.example.drowsydrive.BuildConfig
 import com.example.drowsydrive.DriveGuardApplication
 import com.example.drowsydrive.R
 import com.example.drowsydrive.alert.WarningAlarmController
 import com.example.drowsydrive.alert.WarningAlarmController.AlertType
 import com.example.drowsydrive.detection.CameraController
+import com.example.drowsydrive.detection.DetectionLogRecorder
 import com.example.drowsydrive.detection.FaceDetectionManager
 import com.example.drowsydrive.location.LocationFix
 import com.example.drowsydrive.location.LocationProvider
@@ -41,6 +44,22 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
     private val screenState = MainScreenState()
     private lateinit var locationGate: PreciseLocationGate<LocationAction>
 
+    // 개발용 측정 로그. 디버그 빌드에서만 만들며, 릴리스에서는 null이라 파일·스레드가 생기지 않는다.
+    private var detectionLogRecorder: DetectionLogRecorder? = null
+    private var detectionLogSession: DetectionLogRecorder.Session? = null
+    /** 사용자가 수집을 켠 상태. 화면 복귀 시 새 세션으로 다시 시작한다. 프로세스 재시작 시 false. */
+    private val detectionLogPreferences by lazy {
+        ViewModelProvider(this)[DetectionLogPreferences::class.java]
+    }
+    private var detectionLogWanted: Boolean
+        get() = detectionLogPreferences.wanted
+        set(value) { detectionLogPreferences.wanted = value }
+    private var detectionLogScenario: String
+        get() = detectionLogPreferences.scenario
+        set(value) { detectionLogPreferences.scenario = value }
+    private var markerSequence = 0L
+    private var openMarkerId: Long? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -61,11 +80,22 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
             bluetoothDevicePicker = BluetoothDevicePicker(this)
         }
         warningAlarmController = WarningAlarmController(this, this)
+        if (BuildConfig.DEBUG) setUpDetectionLog()
         screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
         setContentView(
             MainScreenUi.createView(
                 this, screenState, this, ::requestScreenPermissions,
                 ::showExitDialog, ::onPreviewReady,
+                detectionLogActions = if (BuildConfig.DEBUG) {
+                    DetectionLogActions(
+                        onStart = ::startDetectionLog,
+                        onStop = ::stopDetectionLog,
+                        onMarkerStart = ::startMarker,
+                        onMarkerEnd = ::endMarker,
+                    )
+                } else {
+                    null
+                },
             ),
         )
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -82,6 +112,15 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
         // 재개 시 새 분석 세션으로 시작해 중단 전 판정 상태를 이어 쓰지 않는다.
         faceDetectionManager.start()
+        if (BuildConfig.DEBUG && detectionLogWanted) {
+            // 이전 세션 파일·타이머에 이어 붙이지 않고 새 수집 세션으로 시작한다.
+            if (permissionManager.hasCamera()) {
+                openDetectionLog()
+            } else {
+                detectionLogWanted = false
+                updateDetectionLogState { copy(message = getString(R.string.debug_log_need_camera)) }
+            }
+        }
         if (permissionManager.hasCamera()) cameraController?.startCamera()
         if (permissionManager.hasLocation()) locationProvider.start() else locationGate.cancel()
         if (BuildConfig.CO2_SENSOR_ENABLED && permissionManager.hasBluetooth()) {
@@ -96,6 +135,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         locationProvider.stop()
         // 진행 중인 비동기 분석 결과가 중단 이후 판정/알람에 반영되지 않도록 세션을 먼저 끝낸다.
         faceDetectionManager.stop()
+        closeDetectionLog("screen_paused")
         cameraController?.stopCamera()
         screenState.updateCameraStreaming(false)
         super.onPause()
@@ -106,6 +146,9 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         cameraController?.stopCamera()
         faceDetectionManager.close()
         warningAlarmController.release()
+        // 회전 시 작업자는 유지하되 이전 Activity 참조는 끊는다. 실제 화면 종료는 ViewModel이 해제한다.
+        detectionLogRecorder?.setListener(null)
+        detectionLogRecorder = null
         super.onDestroy()
     }
 
@@ -135,6 +178,123 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
         }
     }
 
+    private fun setUpDetectionLog() {
+        val environment = linkedMapOf<String, Any?>(
+            "app_version_name" to BuildConfig.VERSION_NAME,
+            "app_version_code" to BuildConfig.VERSION_CODE,
+            "build_type" to BuildConfig.BUILD_TYPE,
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "sdk_int" to Build.VERSION.SDK_INT,
+            "detection_config" to FaceDetectionManager.detectionConfig(),
+        )
+        detectionLogRecorder = detectionLogPreferences.recorder
+            ?: DetectionLogRecorder.create(applicationContext, environment, ::onDetectionLogStatus).also {
+                detectionLogPreferences.recorder = it
+            }
+        detectionLogRecorder?.setListener(::onDetectionLogStatus)
+        screenState.updateDetectionLog(DetectionLogUiState())
+        warningAlarmController.setEventListener { event, alertType, activeBefore, trace, relatedAlarmId ->
+            detectionLogSession?.recordEvent(
+                "alarm", "event", event, "alert", alertType.name, "active_before", activeBefore?.name,
+                "alarm_id", trace?.alarmId, "source_session_id", trace?.sourceSessionId,
+                "source_observation_id", trace?.sourceObservationId, "related_alarm_id", relatedAlarmId,
+            )
+        }
+    }
+
+    private inline fun updateDetectionLogState(change: DetectionLogUiState.() -> DetectionLogUiState) {
+        screenState.detectionLog?.let { screenState.updateDetectionLog(it.change()) }
+    }
+
+    private fun startDetectionLog(scenario: String) {
+        val blocked = when {
+            !permissionManager.hasCamera() -> R.string.debug_log_need_camera
+            !screenState.cameraStreaming || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ->
+                R.string.debug_log_need_analysis
+            else -> 0
+        }
+        if (blocked != 0) {
+            updateDetectionLogState { copy(message = getString(blocked)) }
+            return
+        }
+        detectionLogWanted = true
+        detectionLogScenario = scenario
+        openDetectionLog()
+    }
+
+    private fun stopDetectionLog() {
+        detectionLogWanted = false
+        closeDetectionLog("user_stop")
+    }
+
+    private fun openDetectionLog() {
+        val recorder = detectionLogRecorder ?: return
+        if (detectionLogSession != null) return
+        val session = recorder.start(detectionLogScenario)
+        if (session == null) {
+            detectionLogWanted = false
+            updateDetectionLogState { copy(message = getString(R.string.debug_log_unavailable)) }
+            return
+        }
+        detectionLogSession = session
+        openMarkerId = null
+        faceDetectionManager.setLogSession(session)
+        updateDetectionLogState { copy(scenario = detectionLogScenario, openMarker = null, message = null) }
+    }
+
+    private fun closeDetectionLog(reason: String) {
+        val session = detectionLogSession ?: return
+        faceDetectionManager.setLogSession(null)
+        openMarkerId?.let {
+            session.recordEvent("marker", "phase", "abandoned", "marker_id", it, "reason", reason)
+        }
+        openMarkerId = null
+        detectionLogSession = null
+        detectionLogRecorder?.stop(reason)
+        updateDetectionLogState { copy(openMarker = null) }
+    }
+
+    private fun startMarker(label: String) {
+        val session = detectionLogSession ?: return
+        if (openMarkerId != null) return
+        val id = ++markerSequence
+        val name = label.ifBlank { "marker_$id" }
+        openMarkerId = id
+        session.recordEvent("marker", "phase", "start", "marker_id", id, "label", name)
+        updateDetectionLogState { copy(openMarker = name) }
+    }
+
+    private fun endMarker() {
+        val session = detectionLogSession ?: return
+        val id = openMarkerId ?: return
+        session.recordEvent("marker", "phase", "end", "marker_id", id)
+        openMarkerId = null
+        updateDetectionLogState { copy(openMarker = null) }
+    }
+
+    private fun onDetectionLogStatus(status: DetectionLogRecorder.Status) {
+        if (status.state == DetectionLogRecorder.State.ERROR) {
+            // 기록만 멈추고 감지·알람은 계속한다. 복귀 시 자동으로 다시 시작하지 않는다.
+            detectionLogWanted = false
+            faceDetectionManager.setLogSession(null)
+            detectionLogSession = null
+            openMarkerId = null
+        }
+        updateDetectionLogState {
+            copy(
+                state = status.state,
+                sessionId = status.sessionId,
+                fileName = status.fileName,
+                recordsWritten = status.recordsWritten,
+                dropped = status.observationsDropped,
+                message = status.errorMessage
+                    ?: message.takeIf { status.state != DetectionLogRecorder.State.ERROR },
+                openMarker = if (status.state == DetectionLogRecorder.State.RECORDING) openMarker else null,
+            )
+        }
+    }
+
     private fun showExitDialog() {
         screenState.showDialog(MainDialog.Exit)
     }
@@ -151,6 +311,14 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
 
     override fun onYawnDetected() {
         warningAlarmController.playWarningAlarm(AlertType.YAWN)
+    }
+
+    override fun onEyesClosed(sourceSessionId: String, observationId: Long) {
+        warningAlarmController.playWarningAlarm(AlertType.DROWSINESS, sourceSessionId, observationId)
+    }
+
+    override fun onYawnDetected(sourceSessionId: String, observationId: Long) {
+        warningAlarmController.playWarningAlarm(AlertType.YAWN, sourceSessionId, observationId)
     }
 
     override fun onLocationChanged(fix: LocationFix) {

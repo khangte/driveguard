@@ -5,7 +5,8 @@ import android.util.Log;
 
 import com.example.drowsydrive.R;
 
-import java.util.EnumSet;
+import java.util.EnumMap;
+import java.util.UUID;
 
 /**
  * 경고음/TTS 흐름을 담당하고, 다이얼로그/안내창 표시는 Ui 콜백으로 화면에 요청한다.
@@ -35,12 +36,40 @@ public class WarningAlarmController {
         void showGuideDialog();
     }
 
+    /**
+     * 개발용 측정 로그에 알람 흐름을 남기기 위한 관찰자. 메인 스레드에서 호출된다.
+     * 요청·표시 요청 시점을 알릴 뿐 경고음/TTS 재생 완료를 뜻하지 않는다.
+     */
+    public interface EventListener {
+        /**
+         * @param event requested, suppressed_duplicate, queued_pending, preempted_active,
+         *              sound_unavailable, dialog_posted, stopped_by_user, stop_ignored_stale
+         * @param activeBefore 이 이벤트 직전에 표시 중이던 경고(없으면 null)
+         */
+        void onAlarmEvent(String event, AlertType alertType, AlertType activeBefore,
+                          AlarmTrace trace, String relatedAlarmId);
+    }
+
+    /** 요청부터 대기·표시·종료까지 유지하는 개발용 추적 정보. */
+    public static final class AlarmTrace {
+        public final String alarmId = UUID.randomUUID().toString();
+        public final String sourceSessionId;
+        public final Long sourceObservationId;
+
+        AlarmTrace(String sourceSessionId, Long sourceObservationId) {
+            this.sourceSessionId = sourceSessionId;
+            this.sourceObservationId = sourceObservationId;
+        }
+    }
+
     private final SoundManager soundManager;
     private final TTSManager ttsManager;
     private final Ui ui;
     private AlertType activeAlert;
-    private final EnumSet<AlertType> pendingAlerts = EnumSet.noneOf(AlertType.class);
+    private final EnumMap<AlertType, AlarmTrace> pendingAlerts = new EnumMap<>(AlertType.class);
+    private AlarmTrace activeTrace;
     private long alarmGeneration = 0;
+    private EventListener eventListener;
 
     public WarningAlarmController(Context context, Ui ui) {
         this.ui = ui;
@@ -48,41 +77,84 @@ public class WarningAlarmController {
         this.soundManager = new SoundManager(context, R.raw.alarm_sound);
     }
 
+    public void setEventListener(EventListener listener) {
+        this.eventListener = listener;
+    }
+
+    private void notifyEvent(String event, AlertType alertType, AlertType activeBefore,
+                             AlarmTrace trace, String relatedAlarmId) {
+        if (eventListener != null) {
+            eventListener.onAlarmEvent(event, alertType, activeBefore, trace, relatedAlarmId);
+        }
+    }
+
     public void playWarningAlarm(AlertType alertType) {
-        if (activeAlert == alertType) return;
-        if (activeAlert != null && alertType != AlertType.DROWSINESS) {
-            // 판정기는 에피소드당 한 번만 통지하므로 겹친 경고를 버리지 않는다.
-            pendingAlerts.add(alertType);
+        playWarningAlarm(alertType, null, null);
+    }
+
+    /** 원인 관측은 수집 세션과 함께 전달한다. 수집하지 않은 관측은 null이다. */
+    public void playWarningAlarm(AlertType alertType, String sourceSessionId, Long sourceObservationId) {
+        AlarmTrace trace = eventListener == null ? null : new AlarmTrace(sourceSessionId, sourceObservationId);
+        playWarningAlarm(alertType, trace);
+    }
+
+    private void playWarningAlarm(AlertType alertType, AlarmTrace trace) {
+        notifyEvent("requested", alertType, activeAlert, trace, null);
+        if (activeAlert == alertType) {
+            notifyEvent("suppressed_duplicate", alertType, activeAlert, trace, id(activeTrace));
             return;
         }
-        // 졸음 경고는 현재 표시 중인 하품/CO2 경고보다 우선한다.
-        if (activeAlert != null) soundManager.stopAlarm();
+        if (activeAlert != null && alertType != AlertType.DROWSINESS) {
+            // 같은 종류의 대기는 기존처럼 하나로 합치되 최초 요청의 원인을 보존한다.
+            AlarmTrace pending = pendingAlerts.get(alertType);
+            if (!pendingAlerts.containsKey(alertType)) pendingAlerts.put(alertType, trace);
+            notifyEvent("queued_pending", alertType, activeAlert, trace, id(pending));
+            return;
+        }
+        if (activeAlert != null) {
+            notifyEvent("preempted_active", alertType, activeAlert, trace, id(activeTrace));
+            soundManager.stopAlarm();
+        }
         activeAlert = alertType;
+        activeTrace = trace;
         pendingAlerts.remove(alertType);
         long generation = ++alarmGeneration;
-        // 재생 자원이 준비 전이면 각 매니저가 이 경고를 보관했다가 준비 완료 시 재생한다(이전 예약은 교체됨).
-        if (!soundManager.playAlarm()) Log.w(TAG, "경고음을 재생할 수 없음: " + alertType);
+        if (!soundManager.playAlarm()) {
+            Log.w(TAG, "경고음을 재생할 수 없음: " + alertType);
+            notifyEvent("sound_unavailable", alertType, null, trace, null);
+        }
         ttsManager.speak(alertType.message);
         ui.showAlarmDialog(alertType, () -> {
-            if (generation != alarmGeneration || activeAlert == null) return;
-            // 초기화 전이라 예약만 된 경고음·안내는 종료된 경고이므로 취소한다.
+            if (generation != alarmGeneration || activeAlert == null) {
+                notifyEvent("stop_ignored_stale", alertType, activeAlert, trace, id(activeTrace));
+                return;
+            }
+            notifyEvent("stopped_by_user", alertType, activeAlert, trace, null);
             soundManager.stopAlarm();
             ttsManager.cancelPending();
             activeAlert = null;
+            activeTrace = null;
             if (alertType == AlertType.DROWSINESS || alertType == AlertType.YAWN) {
                 ui.showGuideDialog();
             }
             if (!pendingAlerts.isEmpty()) {
-                AlertType next = pendingAlerts.contains(AlertType.CO2)
-                        ? AlertType.CO2 : pendingAlerts.iterator().next();
-                playWarningAlarm(next);
+                AlertType next = pendingAlerts.containsKey(AlertType.CO2)
+                        ? AlertType.CO2 : pendingAlerts.keySet().iterator().next();
+                // 대기 당시의 ID/원인으로 재개하며 새 알람 ID를 만들지 않는다.
+                playWarningAlarm(next, pendingAlerts.get(next));
             }
         });
+        notifyEvent("dialog_posted", alertType, null, trace, null);
+    }
+
+    private static String id(AlarmTrace trace) {
+        return trace == null ? null : trace.alarmId;
     }
 
     public void release() {
         ++alarmGeneration;
         activeAlert = null;
+        activeTrace = null;
         pendingAlerts.clear();
         soundManager.release();
         ttsManager.shutdown();

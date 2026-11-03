@@ -66,6 +66,41 @@ public class WarningAlarmIntegrationTest {
     }
 
     @Test
+    public void queuedAlarmKeepsFirstOriginThroughDuplicateRequestsAndStop() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            RecordingUi ui = new RecordingUi();
+            WarningAlarmController alarms = new WarningAlarmController(
+                    InstrumentationRegistry.getInstrumentation().getTargetContext(), ui);
+            List<WarningAlarmController.AlarmTrace> queued = new ArrayList<>();
+            List<WarningAlarmController.AlarmTrace> shown = new ArrayList<>();
+            List<WarningAlarmController.AlarmTrace> stopped = new ArrayList<>();
+            List<String> related = new ArrayList<>();
+            alarms.setEventListener((event, type, active, trace, relatedId) -> {
+                if ("queued_pending".equals(event)) { queued.add(trace); related.add(relatedId); }
+                if ("dialog_posted".equals(event)) shown.add(trace);
+                if ("stopped_by_user".equals(event)) stopped.add(trace);
+            });
+            try {
+                alarms.playWarningAlarm(AlertType.DROWSINESS, "session_a", 1L);
+                alarms.playWarningAlarm(AlertType.YAWN, "session_a", 2L);
+                alarms.playWarningAlarm(AlertType.YAWN, "session_a", 3L);
+                alarms.playWarningAlarm(AlertType.CO2);
+                assertEquals(queued.get(0).alarmId, related.get(1));
+                ui.stops.get(0).run(); // CO2 먼저
+                ui.stops.get(1).run(); // 그 다음 최초 YAWN 요청
+                assertEquals(Arrays.asList(AlertType.DROWSINESS, AlertType.CO2, AlertType.YAWN), ui.alerts);
+                assertEquals(queued.get(0).alarmId, shown.get(2).alarmId);
+                assertEquals("session_a", shown.get(2).sourceSessionId);
+                assertEquals(Long.valueOf(2), shown.get(2).sourceObservationId);
+                ui.stops.get(2).run();
+                assertEquals(shown.get(2).alarmId, stopped.get(2).alarmId);
+            } finally {
+                alarms.release();
+            }
+        });
+    }
+
+    @Test
     public void overlappingLowerPriorityAlertsAreDeliveredAfterCurrentAlarm() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             RecordingUi ui = new RecordingUi();

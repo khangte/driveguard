@@ -2,6 +2,8 @@ package com.example.drowsydrive.ui.main
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +35,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import com.example.drowsydrive.BuildConfig
 import com.example.drowsydrive.R
+import com.example.drowsydrive.detection.DetectionLogRecorder
 
 /** 메인 화면에서 띄우는 다이얼로그 종류. */
 sealed interface MainDialog {
@@ -75,10 +79,20 @@ private val Blocking = DialogProperties(dismissOnBackPress = false, dismissOnCli
 
 /** 한 번에 하나의 Material 3 다이얼로그를 표시한다. 경고가 있으면 다른 요청보다 우선한다. */
 @Composable
-internal fun MainDialogHost(state: MainScreenState, listener: MainDialogs.Listener) {
+internal fun MainDialogHost(
+    state: MainScreenState,
+    listener: MainDialogs.Listener,
+    detectionLogActions: DetectionLogActions? = null,
+) {
+    val log = state.detectionLog
+    val markerControls: (@Composable () -> Unit)? =
+        if (BuildConfig.DEBUG && log != null && log.state == DetectionLogRecorder.State.RECORDING
+            && detectionLogActions != null) {
+            { DetectionMarkerControls(log, detectionLogActions) }
+        } else null
     val alarm = state.alarm
     if (alarm != null) {
-        AlarmDialog(alarm.title, alarm.message, onStop = {
+        AlarmDialog(alarm.title, alarm.message, markerControls = markerControls, onStop = {
             if (state.alarm === alarm) {
                 state.dismissAlarm()
                 alarm.onStop()
@@ -89,7 +103,8 @@ internal fun MainDialogHost(state: MainScreenState, listener: MainDialogs.Listen
     val close = state::dismissDialog
     when (val dialog = state.dialog) {
         MainDialog.Exit -> ExitDialog(onConfirm = { close(); listener.onExitConfirmed() }, onDismiss = close)
-        MainDialog.Guide -> GuideDialog(onSearch = { close(); listener.onGuideKeywordSelected(it) }, onDismiss = close)
+        MainDialog.Guide -> GuideDialog(onSearch = { close(); listener.onGuideKeywordSelected(it) },
+            onDismiss = close, markerControls = markerControls)
         is MainDialog.PermissionSettings -> PermissionDialog(
             dialog.message, onSettings = { close(); listener.onAppSettingsSelected() }, onDismiss = close)
         is MainDialog.SensorPicker -> SensorPickerDialog(
@@ -101,7 +116,12 @@ internal fun MainDialogHost(state: MainScreenState, listener: MainDialogs.Listen
 }
 
 @Composable
-internal fun AlarmDialog(title: String, message: String, onStop: () -> Unit) {
+internal fun AlarmDialog(
+    title: String,
+    message: String,
+    markerControls: (@Composable () -> Unit)? = null,
+    onStop: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = {},
@@ -109,7 +129,13 @@ internal fun AlarmDialog(title: String, message: String, onStop: () -> Unit) {
         icon = { Icon(Icons.Default.Warning, null) },
         iconContentColor = colors.error,
         title = { Text(title, textAlign = TextAlign.Center) },
-        text = { Text(message, Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+        text = {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(message, Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                markerControls?.invoke()
+            }
+        },
         confirmButton = {
             Button(
                 onClick = onStop,
@@ -124,14 +150,20 @@ internal fun AlarmDialog(title: String, message: String, onStop: () -> Unit) {
 }
 
 @Composable
-internal fun GuideDialog(onSearch: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun GuideDialog(
+    onSearch: (String) -> Unit,
+    onDismiss: () -> Unit,
+    markerControls: (@Composable () -> Unit)? = null,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.LocationOn, null) },
         title = { Text(stringResource(R.string.dialog_guide_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.notification_sentence))
+                markerControls?.invoke()
                 GuideOption(R.string.rest_area, R.string.main_rest_area_description,
                     onClick = { onSearch(MainDialogs.KEYWORD_REST_AREA) })
                 GuideOption(R.string.drowsy_shelter, R.string.main_rest_stop_description,

@@ -43,6 +43,7 @@ object MainScreenUi {
         onPermissions: () -> Unit,
         onExit: () -> Unit,
         onPreviewReady: (PreviewView) -> Unit,
+        detectionLogActions: DetectionLogActions? = null,
     ): ComposeView = ComposeView(context).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
@@ -54,6 +55,7 @@ object MainScreenUi {
                     onPermissions = onPermissions,
                     onExit = onExit,
                     onBluetooth = listener::onBluetoothMenuSelected,
+                    detectionLogActions = detectionLogActions,
                     camera = {
                         AndroidView(
                             modifier = Modifier.fillMaxSize(),
@@ -67,7 +69,7 @@ object MainScreenUi {
                         )
                     },
                 )
-                MainDialogHost(state, listener)
+                MainDialogHost(state, listener, detectionLogActions)
             }
         }
     }
@@ -82,6 +84,7 @@ internal fun MainScreen(
     onPermissions: () -> Unit,
     onExit: () -> Unit,
     onBluetooth: () -> Unit,
+    detectionLogActions: DetectionLogActions? = null,
     camera: @Composable () -> Unit,
 ) {
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
@@ -146,6 +149,10 @@ internal fun MainScreen(
                 } else {
                     MonitorCard(state, camera)
                     RestSection(state, onMap, onSearch, onPermissions)
+                }
+                val logState = state.detectionLog
+                if (BuildConfig.DEBUG && logState != null && detectionLogActions != null) {
+                    DetectionLogPanel(logState, detectionLogActions)
                 }
                 if (BuildConfig.CO2_SENSOR_ENABLED) {
                     OutlinedCard(Modifier.fillMaxWidth()) {

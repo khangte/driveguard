@@ -28,6 +28,10 @@ class MainScreenState {
     var alarm: AlarmAlert? by mutableStateOf(null)
         private set
 
+    /** 디버그 빌드의 측정 로그 상태. null이면 제어 UI를 표시하지 않는다(릴리스). */
+    var detectionLog: DetectionLogUiState? by mutableStateOf(null)
+        private set
+
     fun updatePermissions(camera: Boolean, location: Boolean) {
         cameraGranted = camera
         locationGranted = location
@@ -65,5 +69,9 @@ class MainScreenState {
 
     fun dismissAlarm() {
         alarm = null
+    }
+
+    fun updateDetectionLog(state: DetectionLogUiState?) {
+        detectionLog = state
     }
 }

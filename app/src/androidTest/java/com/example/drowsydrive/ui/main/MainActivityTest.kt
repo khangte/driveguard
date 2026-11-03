@@ -7,6 +7,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.rule.GrantPermissionRule
+import androidx.lifecycle.ViewModelProvider
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import com.example.drowsydrive.DriveGuardApplication
 import org.junit.Assume.assumeFalse
 import org.junit.Rule
@@ -25,6 +29,26 @@ class MainActivityTest {
             Manifest.permission.ACCESS_FINE_LOCATION,
         ),
     ).around(compose)
+
+    @Test
+    fun recreationRetainsCollectionIntentAndSingleRecorder() {
+        lateinit var retained: DetectionLogPreferences
+        compose.activityRule.scenario.onActivity {
+            retained = ViewModelProvider(it)[DetectionLogPreferences::class.java]
+            retained.wanted = true
+            retained.scenario = "eyes_closed_2s"
+        }
+        val recorder = retained.recorder
+        compose.activityRule.scenario.recreate()
+        compose.activityRule.scenario.onActivity {
+            val current = ViewModelProvider(it)[DetectionLogPreferences::class.java]
+            assertSame(retained, current)
+            assertSame(recorder, current.recorder)
+            assertTrue(current.wanted)
+            assertEquals("eyes_closed_2s", current.scenario)
+        }
+        compose.onNodeWithText("수집 중").performScrollTo().assertIsDisplayed()
+    }
 
     @Test
     fun launcherShowsMainScreen() {

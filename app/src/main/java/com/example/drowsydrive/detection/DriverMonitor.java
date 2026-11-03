@@ -85,52 +85,96 @@ final class DriverMonitor {
      * @param frameTimeMs 프레임 분석을 시작한 시각(단조 증가 시계)
      */
     int onFaces(long session, List<FaceObservation> faces, long frameTimeMs) {
-        if (!enterSession(session)) return ALERT_NONE;
+        return onFaces(session, faces, frameTimeMs, null);
+    }
+
+    /**
+     * {@link #onFaces(long, List, long)}와 같고, trace가 null이 아니면 실제 판정 과정을 기록한다.
+     * trace는 판정 결과에 영향을 주지 않는다.
+     */
+    int onFaces(long session, List<FaceObservation> faces, long frameTimeMs, DetectionTrace trace) {
+        if (!enterSession(session, trace)) return ALERT_NONE;
+        if (trace != null) trace.applied = true;
         if (faces.isEmpty()) {
+            recordReset(trace, DetectionTrace.RESET_NO_FACE);
             clearTarget();
+            if (trace != null) {
+                trace.eyes.capture(DetectionTrace.INPUT_NO_FACE, false, detector.eyesSnapshot(), false);
+                trace.yawn.capture(DetectionTrace.INPUT_NO_FACE, false, detector.yawnSnapshot(), false);
+                trace.eyes.outcome = null;
+                trace.yawn.outcome = null;
+            }
             return ALERT_NONE;
         }
 
-        FaceObservation driver = faces.get(selectDriver(faces));
+        int selected = selectDriver(faces, trace);
+        if (trace != null) trace.selectedIndex = selected;
+        FaceObservation driver = faces.get(selected);
         int alerts = ALERT_NONE;
-        if (driver.leftEyeOpenProbability != null && driver.rightEyeOpenProbability != null) {
-            if (detector.updateEyes(driver.leftEyeOpenProbability, driver.rightEyeOpenProbability,
-                    frameTimeMs)) {
-                alerts |= ALERT_EYES_CLOSED;
-            }
+        boolean eyesActiveBefore = detector.isEyesEpisodeActive();
+        boolean eyesAlert = false;
+        boolean eyesPresent = driver.leftEyeOpenProbability != null && driver.rightEyeOpenProbability != null;
+        if (eyesPresent) {
+            eyesAlert = detector.updateEyes(driver.leftEyeOpenProbability, driver.rightEyeOpenProbability,
+                    frameTimeMs);
+            if (eyesAlert) alerts |= ALERT_EYES_CLOSED;
         } else {
             detector.invalidateEyes();
         }
+        if (trace != null) {
+            trace.eyes.capture(eyesPresent ? DetectionTrace.INPUT_PRESENT : DetectionTrace.INPUT_MISSING,
+                    eyesActiveBefore, detector.eyesSnapshot(), eyesAlert);
+        }
 
-        if (driver.smilingProbability != null && driver.mouthBottomY != null
-                && driver.noseBaseY != null && driver.rightEyeY != null) {
-            if (detector.updateYawn(driver.smilingProbability, driver.mouthBottomY, driver.noseBaseY,
-                    driver.rightEyeY, frameTimeMs)) {
-                alerts |= ALERT_YAWN;
-            }
+        boolean yawnActiveBefore = detector.isYawnEpisodeActive();
+        boolean yawnAlert = false;
+        boolean yawnPresent = driver.smilingProbability != null && driver.mouthBottomY != null
+                && driver.noseBaseY != null && driver.rightEyeY != null;
+        if (yawnPresent) {
+            yawnAlert = detector.updateYawn(driver.smilingProbability, driver.mouthBottomY, driver.noseBaseY,
+                    driver.rightEyeY, frameTimeMs);
+            if (yawnAlert) alerts |= ALERT_YAWN;
         } else {
             detector.invalidateYawn();
+        }
+        if (trace != null) {
+            trace.yawn.capture(yawnPresent ? DetectionTrace.INPUT_PRESENT : DetectionTrace.INPUT_MISSING,
+                    yawnActiveBefore, detector.yawnSnapshot(), yawnAlert);
+            trace.yawn.ratio = detector.lastYawnRatio();
         }
         return alerts;
     }
 
     /** 추론 실패/예외로 관측을 얻지 못했으면 진행 중인 판정을 초기화한다. */
     void onFailure(long session) {
-        if (!enterSession(session)) return;
+        onFailure(session, null);
+    }
+
+    void onFailure(long session, DetectionTrace trace) {
+        if (!enterSession(session, trace)) return;
+        if (trace != null) trace.applied = true;
+        recordReset(trace, DetectionTrace.RESET_ANALYSIS_FAILURE);
         detector.reset();
     }
 
     /** 현재 세션의 결과인지 확인하고, 세션이 바뀌었으면 이전 세션의 판정/대상을 버린다. */
-    private boolean enterSession(long session) {
+    private boolean enterSession(long session, DetectionTrace trace) {
         if (!isCurrent(session)) return false;
         if (appliedSession != session) {
             appliedSession = session;
+            recordReset(trace, DetectionTrace.RESET_SESSION_CHANGED);
             clearTarget();
         }
         return true;
     }
 
-    private int selectDriver(List<FaceObservation> faces) {
+    private void recordReset(DetectionTrace trace, String reason) {
+        if (trace == null) return;
+        trace.resets.add(new DetectionTrace.Reset(reason,
+                detector.isEyesEpisodeActive(), detector.isYawnEpisodeActive()));
+    }
+
+    private int selectDriver(List<FaceObservation> faces, DetectionTrace trace) {
         int selected = -1;
         if (hasTarget && targetTrackingId != null) {
             for (int i = 0; i < faces.size(); i++) {
@@ -141,15 +185,20 @@ final class DriverMonitor {
             }
         }
         boolean sameTarget = selected >= 0;
+        String reason = DetectionTrace.TARGET_KEPT_TRACKING_ID;
         if (!sameTarget) {
             selected = largestFace(faces);
             sameTarget = hasTarget && targetTrackingId == null
                     && faces.get(selected).trackingId == null
                     && lastFaceCount == 1 && faces.size() == 1;
+            reason = DetectionTrace.TARGET_KEPT_SINGLE_UNTRACKED;
         }
         if (!sameTarget) {
+            reason = hasTarget ? DetectionTrace.TARGET_CHANGED : DetectionTrace.TARGET_NEW;
+            if (hasTarget) recordReset(trace, DetectionTrace.RESET_TARGET_CHANGED);
             detector.reset(); // 대상이 바뀌었거나 같은 대상인지 확인할 수 없다.
         }
+        if (trace != null) trace.targetReason = reason;
         hasTarget = true;
         targetTrackingId = faces.get(selected).trackingId;
         lastFaceCount = faces.size();

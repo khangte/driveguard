@@ -63,4 +63,21 @@
     <string name="map_error_title">지도를 표시할 수 없어요</string>
     <string name="map_load_failed">지도 연결에 실패했습니다. 네트워크와 지도 설정을 확인한 후 다시 열어주세요.</string>
     <string name="map_location_required">메인 화면에서 위치 권한을 허용한 뒤 지도를 다시 열어주세요.</string>
+    <string name="debug_log_title">측정 로그 (개발용)</string>
+    <string name="debug_log_state_stopped">중지</string>
+    <string name="debug_log_state_recording">수집 중</string>
+    <string name="debug_log_state_error">오류</string>
+    <string name="debug_log_scenario">테스트 시나리오</string>
+    <string name="debug_log_start">수집 시작</string>
+    <string name="debug_log_stop">수집 중지</string>
+    <string name="debug_log_file">파일: %1$s</string>
+    <string name="debug_log_counts">기록 %1$d줄 · 유실 %2$d건</string>
+    <string name="debug_log_marker_label">행동 이름 (예: 눈 감기)</string>
+    <string name="debug_log_marker_start">행동 시작</string>
+    <string name="debug_log_marker_end">행동 종료</string>
+    <string name="debug_log_marker_open">진행 중인 마커: %1$s</string>
+    <string name="debug_log_note">정차 상태에서만 사용하세요. 마커는 사람의 반응 지연이 있는 참고 기록입니다.</string>
+    <string name="debug_log_need_camera">카메라 권한이 없어 수집을 시작할 수 없습니다.</string>
+    <string name="debug_log_need_analysis">카메라 분석이 실행 중일 때 시작할 수 있습니다.</string>
+    <string name="debug_log_unavailable">수집기를 시작할 수 없습니다.</string>
 </resources>

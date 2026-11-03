@@ -25,8 +25,41 @@ class MainDialogsTest {
         override fun onExitConfirmed() { events.add("exit") }
     }
 
-    private fun host(state: MainScreenState) {
-        compose.setContent { MaterialTheme { MainDialogHost(state, listener) } }
+    private fun host(state: MainScreenState, actions: DetectionLogActions? = null) {
+        compose.setContent { MaterialTheme { MainDialogHost(state, listener, actions) } }
+    }
+
+    @Test
+    fun markerRemainsUsableInsideAlarmAndFollowingGuide() {
+        val state = MainScreenState()
+        state.updateDetectionLog(DetectionLogUiState(
+            state = com.example.drowsydrive.detection.DetectionLogRecorder.State.RECORDING,
+            openMarker = "눈 감기",
+        ))
+        var ends = 0
+        var stops = 0
+        val actions = DetectionLogActions({}, {}, {
+            state.updateDetectionLog(state.detectionLog!!.copy(openMarker = "다음 행동"))
+        }, {
+            ends++
+            state.updateDetectionLog(state.detectionLog!!.copy(openMarker = null))
+        })
+        state.showAlarm(AlarmAlert("졸음 경고", "휴식을 취하세요!") {
+            stops++
+            state.showDialog(MainDialog.Guide)
+        })
+        host(state, actions)
+        compose.onNodeWithText("행동 종료").performClick()
+        compose.runOnIdle { assertEquals(1, ends); assertEquals(0, stops) }
+        compose.onNodeWithText("졸음 경고").assertIsDisplayed()
+        compose.onNodeWithText("알람 끄기").performClick()
+        compose.onNodeWithText("행동 시작").performClick()
+        compose.onNodeWithText("행동 종료").performClick()
+        compose.runOnIdle {
+            assertEquals(2, ends)
+            assertEquals(1, stops)
+            assertEquals(MainDialog.Guide, state.dialog)
+        }
     }
 
     @Test
