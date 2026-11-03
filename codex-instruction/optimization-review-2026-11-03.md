@@ -30,12 +30,12 @@
 | 3. 지도 로딩 중 최신 위치 전달 | 반영 | `MapManager`가 최신 위치를 보관하고, `onMapReady()`에서 그 좌표로 마커를 생성한다. | 좌표 A로 시작 → 준비 전 좌표 B 수신 → 마커가 B에 표시되는지 확인 |
 | 4. 메인 화면 고정밀 위치 비용 | 부분 반영 | 새 `LocationUpdatePolicy`로 화면별 정책을 나눴다. 메인은 `PRIORITY_BALANCED_POWER_ACCURACY`·10초 간격, 지도는 `PRIORITY_HIGH_ACCURACY`·5초 간격이다. | 전력 절감 효과 미측정. 정확도가 약 100m 수준으로 낮아지므로 휴게소 검색 정확도 확인 필요. 캐시가 오래된 경우 검색 직전에 고정밀로 다시 받는 기능은 구현하지 않았다. |
 | 5. 위치 배치와 유효시간 기준 | 반영 | 배치 전달을 끄고(`setMaxUpdateDelayMillis(0)`) 수신 목록 중 최신 위치 한 개만 전달한다. 유효시간은 요청 간격의 2배로 맞췄다. 위치 나이는 `elapsedRealtimeNanos` 기준으로 계산하고, 이 값이 없는 위치만 시스템 시각으로 판정한다. | 지도 화면 배치 해제로 인한 전력 증가 여부 측정 |
-| 6. 미사용 코드와 리소스 정리 | 반영 | `activity_main.xml`, `activity_map.xml`, `ic_menu.png`, `REST_API_KEY` BuildConfig 필드, `MapManager.onDestroy()`와 호출부를 삭제했다. 레이아웃 삭제로 미사용이 된 `current_location` 문자열과 이전부터 미사용이던 `request_guide` 문자열도 삭제했다. | `local.properties`의 `REST_API_KEY` 값은 그대로 두었다. APK 크기 감소량은 측정하지 않았다. |
+| 6. 미사용 코드와 리소스 정리 | 반영 | `activity_main.xml`, `activity_map.xml`, `ic_menu.png`, `REST_API_KEY` BuildConfig 필드, `MapManager.onDestroy()`와 호출부를 삭제했다. 레이아웃 삭제로 미사용이 된 `current_location` 문자열과 이전부터 미사용이던 `request_guide` 문자열도 삭제했다. | `../local.properties`의 `REST_API_KEY` 값은 그대로 두었다. APK 크기 감소량은 측정하지 않았다. |
 
 ### 변경 파일
 
 - 추가: `alert/ReadyGate.java`, `location/LocationUpdatePolicy.java`, `test/.../alert/ReadyGateTest.java`, `test/.../location/LocationUpdatePolicyTest.java`
-- 수정: `SoundManager.java`, `TTSManager.java`, `WarningAlarmController.java`, `LocationProvider.java`, `MainActivity.kt`, `MapActivity.kt`, `MapManager.kt`, `app/build.gradle`, `res/values/strings.xml`
+- 수정: `SoundManager.java`, `TTSManager.java`, `WarningAlarmController.java`, `LocationProvider.java`, `MainActivity.kt`, `MapActivity.kt`, `MapManager.kt`, `../app/build.gradle`, `res/values/strings.xml`
 - 삭제: `res/layout/activity_main.xml`, `res/layout/activity_map.xml`, `res/drawable/ic_menu.png`
 
 ## 1. 알람 초기화 전 재생 요청 유실
@@ -44,9 +44,9 @@
 
 관련 파일:
 
-- [SoundManager.java](app/src/main/java/com/example/drowsydrive/alert/SoundManager.java)
-- [TTSManager.java](app/src/main/java/com/example/drowsydrive/alert/TTSManager.java)
-- [WarningAlarmController.java](app/src/main/java/com/example/drowsydrive/alert/WarningAlarmController.java)
+- [SoundManager.java](../app/src/main/java/com/example/drowsydrive/alert/SoundManager.java)
+- [TTSManager.java](../app/src/main/java/com/example/drowsydrive/alert/TTSManager.java)
+- [WarningAlarmController.java](../app/src/main/java/com/example/drowsydrive/alert/WarningAlarmController.java)
 
 ### 확인한 코드
 
@@ -78,7 +78,7 @@
 
 우선순위: 중간 — 비동기 오류 처리
 
-관련 파일: [LocationProvider.java](app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
+관련 파일: [LocationProvider.java](../app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
 
 ### 확인한 코드
 
@@ -107,8 +107,8 @@ requestLocationUpdates()의 반환 Task를 확인하지 않고 requestingLocatio
 
 관련 파일:
 
-- [MapActivity.kt](app/src/main/java/com/example/drowsydrive/ui/map/MapActivity.kt)
-- [MapManager.kt](app/src/main/java/com/example/drowsydrive/ui/map/MapManager.kt)
+- [MapActivity.kt](../app/src/main/java/com/example/drowsydrive/ui/map/MapActivity.kt)
+- [MapManager.kt](../app/src/main/java/com/example/drowsydrive/ui/map/MapManager.kt)
 
 ### 확인한 코드
 
@@ -134,8 +134,8 @@ requestLocationUpdates()의 반환 Task를 확인하지 않고 requestingLocatio
 
 관련 파일:
 
-- [MainActivity.kt](app/src/main/java/com/example/drowsydrive/ui/main/MainActivity.kt)
-- [LocationProvider.java](app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
+- [MainActivity.kt](../app/src/main/java/com/example/drowsydrive/ui/main/MainActivity.kt)
+- [LocationProvider.java](../app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
 
 ### 확인한 코드
 
@@ -162,7 +162,7 @@ requestLocationUpdates()의 반환 Task를 확인하지 않고 requestingLocatio
 
 우선순위: 중간 — 버리는 작업 감소 및 시간 판정 개선
 
-관련 파일: [LocationProvider.java](app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
+관련 파일: [LocationProvider.java](../app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
 
 ### 확인한 코드
 
@@ -207,7 +207,7 @@ MapView는 기본 설정에서 포함된 Activity가 종료될 때 자동 종료
 
 ## 유지할 부분
 
-[DriveGuardApplication.java](app/src/main/java/com/example/drowsydrive/DriveGuardApplication.java)의 Application 초기화 위치는 카카오 권장 방식이다. 시작 시간 측정 없이 지도 초기화를 다른 스레드로 옮길 근거는 없다. 네이티브 라이브러리 로드 실패 시 메인 화면을 사용할 수 있게 하는 예외 처리도 유지한다.
+[DriveGuardApplication.java](../app/src/main/java/com/example/drowsydrive/DriveGuardApplication.java)의 Application 초기화 위치는 카카오 권장 방식이다. 시작 시간 측정 없이 지도 초기화를 다른 스레드로 옮길 근거는 없다. 네이티브 라이브러리 로드 실패 시 메인 화면을 사용할 수 있게 하는 예외 처리도 유지한다.
 
 참고: [KakaoMaps 지도 시작하기](https://apis.map.kakao.com/android_v2/docs/getting-started/quickstart/)
 
@@ -238,7 +238,7 @@ MapView는 기본 설정에서 포함된 Activity가 종료될 때 자동 종료
 
 우선순위: 중간
 
-관련 파일: [LocationProvider.java](app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
+관련 파일: [LocationProvider.java](../app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
 
 확인한 내용:
 
@@ -267,8 +267,8 @@ MapView는 기본 설정에서 포함된 Activity가 종료될 때 자동 종료
 
 관련 파일:
 
-- [TTSManager.java](app/src/main/java/com/example/drowsydrive/alert/TTSManager.java)
-- [ReadyGate.java](app/src/main/java/com/example/drowsydrive/alert/ReadyGate.java)
+- [TTSManager.java](../app/src/main/java/com/example/drowsydrive/alert/TTSManager.java)
+- [ReadyGate.java](../app/src/main/java/com/example/drowsydrive/alert/ReadyGate.java)
 
 확인한 내용:
 
@@ -297,10 +297,10 @@ MapView는 기본 설정에서 포함된 Activity가 종료될 때 자동 종료
 
 관련 파일:
 
-- [MainActivity.kt](app/src/main/java/com/example/drowsydrive/ui/main/MainActivity.kt)
-- [LocationProvider.java](app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
-- [LocationUpdatePolicy.java](app/src/main/java/com/example/drowsydrive/location/LocationUpdatePolicy.java)
-- [KakaoMapSearchLauncher.kt](app/src/main/java/com/example/drowsydrive/ui/map/KakaoMapSearchLauncher.kt)
+- [MainActivity.kt](../app/src/main/java/com/example/drowsydrive/ui/main/MainActivity.kt)
+- [LocationProvider.java](../app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
+- [LocationUpdatePolicy.java](../app/src/main/java/com/example/drowsydrive/location/LocationUpdatePolicy.java)
+- [KakaoMapSearchLauncher.kt](../app/src/main/java/com/example/drowsydrive/ui/map/KakaoMapSearchLauncher.kt)
 
 확인한 내용:
 
@@ -442,7 +442,7 @@ Android Studio Gradle 도구로 다음 명령을 실행했다.
 
 ### 빌드 설정 변경
 
-- `app/build.gradle`에 `testOptions.unitTests.returnDefaultValues = true`를 추가했다. TTSManager 실패 경로의 `android.util.Log` 호출이 로컬 단위 테스트에서 예외를 내지 않게 하기 위해서다. 다른 Android 스텁 호출도 예외 대신 기본값을 반환하게 되므로, 단위 테스트가 Android API 호출 결과를 검증하지는 않는다.
+- `../app/build.gradle`에 `testOptions.unitTests.returnDefaultValues = true`를 추가했다. TTSManager 실패 경로의 `android.util.Log` 호출이 로컬 단위 테스트에서 예외를 내지 않게 하기 위해서다. 다른 Android 스텁 호출도 예외 대신 기본값을 반환하게 되므로, 단위 테스트가 Android API 호출 결과를 검증하지는 않는다.
 
 ### 실제 검증 명령과 결과
 
@@ -466,7 +466,7 @@ Android Studio Gradle 도구로 다음 명령을 실행했다.
 - 수정:
   - `location/LocationProvider.java`, `alert/TTSManager.java`, `alert/ReadyGate.java`
   - `ui/main/MainActivity.kt`, `ui/main/MainDialogs.kt`, `ui/main/MainScreen.kt`, `ui/main/MainScreenState.kt`, `ui/map/MapActivity.kt`
-  - `res/values/strings.xml`, `app/build.gradle`, `androidTest/.../ui/main/MainDialogsTest.kt`
+  - `res/values/strings.xml`, `../app/build.gradle`, `androidTest/.../ui/main/MainDialogsTest.kt`
 
 ### 남은 작업
 
@@ -489,9 +489,9 @@ Android Studio Gradle 도구로 다음 명령을 실행했다.
 
 관련 파일:
 
-- [PreciseLocationGate.kt](app/src/main/java/com/example/drowsydrive/ui/main/PreciseLocationGate.kt)
-- [LocationProvider.java](app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
-- [PreciseLocationGateTest.kt](app/src/test/java/com/example/drowsydrive/ui/main/PreciseLocationGateTest.kt)
+- [PreciseLocationGate.kt](../app/src/main/java/com/example/drowsydrive/ui/main/PreciseLocationGate.kt)
+- [LocationProvider.java](../app/src/main/java/com/example/drowsydrive/location/LocationProvider.java)
+- [PreciseLocationGateTest.kt](../app/src/test/java/com/example/drowsydrive/ui/main/PreciseLocationGateTest.kt)
 
 확인한 내용:
 
@@ -527,8 +527,8 @@ Android Studio Gradle 도구로 다음 명령을 실행했다.
 
 관련 파일:
 
-- [PreciseLocationGate.kt](app/src/main/java/com/example/drowsydrive/ui/main/PreciseLocationGate.kt)
-- [PreciseLocationGateTest.kt](app/src/test/java/com/example/drowsydrive/ui/main/PreciseLocationGateTest.kt)
+- [PreciseLocationGate.kt](../app/src/main/java/com/example/drowsydrive/ui/main/PreciseLocationGate.kt)
+- [PreciseLocationGateTest.kt](../app/src/test/java/com/example/drowsydrive/ui/main/PreciseLocationGateTest.kt)
 
 확인한 내용:
 

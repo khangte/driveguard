@@ -20,24 +20,24 @@ Google MLKit를 활용하여 사용자의 졸음을 감지하고,
 ### 개발 환경
 
 <div>
-    <img src="https://img.shields.io/badge/AndroidStudio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white">
-    <img src="https://img.shields.io/badge/Github-181717?style=for-the-badge&logo=github&logoColor=white">
+  <img src="https://img.shields.io/badge/AndroidStudio-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white">
+  <img src="https://img.shields.io/badge/Github-181717?style=for-the-badge&logo=github&logoColor=white">
 </div>
 
 ### 사용 언어
 
 <div>
-    <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
-    <img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white">
+  <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
+  <img src="https://img.shields.io/badge/C%2B%2B-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white">
 </div>
 
 ## 시스템 요구사항
 
 | 구분                       | 세부 내용                                                                                                                                                                                       |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **하드웨어**               | - 안드로이드 스마트폰 카메라 <br> - Arduino Uno <br> - MH-Z19B CO₂ 센서 <br> - Bluetooth 모듈 (HC-06) <br> - Arduino IDE (센서 데이터 처리)                                                     |
-| **소프트웨어**             | - Android Studio (애플리케이션 개발) <br> - Google ML Kit (FaceDetection 라이브러리) <br> - Kakao Maps API Android SDK (사용자 위치 구현) <br> - KakaoMap 애플리케이션 (위치 정보 표시 및 탐색) |
-| **외부 라이브러리 및 API** | - Android Camera2 API <br> - TTS 라이브러리 <br> - SoundPool 라이브러리 <br> - Kakao Maps API Android SDK <br> - Bluetooth API                                                                  |
+| **하드웨어**               | 안드로이드 스마트폰 카메라<br/>Arduino Uno<br/>MH-Z19B CO₂ 센서<br/>Bluetooth 모듈 (HC-06)<br/>Arduino IDE (센서 데이터 처리)                                                     |
+| **소프트웨어**             | Android Studio (애플리케이션 개발)<br/>Google ML Kit (FaceDetection 라이브러리)<br/>Kakao Maps API Android SDK (사용자 위치 구현)<br/>KakaoMap 애플리케이션 (위치 정보 표시 및 탐색) |
+| **외부 라이브러리 및 API** | Android Camera2 API<br/>TTS 라이브러리<br/>SoundPool 라이브러리<br/>Kakao Maps API Android SDK<br/>Bluetooth API                                                                  |
 
 ## 주요 기능
 
