@@ -66,6 +66,54 @@ public class WarningAlarmIntegrationTest {
     }
 
     @Test
+    public void validDrowsinessStopEnablesReplayButYawnAndStaleStopsDoNot() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            RecordingUi ui = new RecordingUi();
+            WarningAlarmController alarms = new WarningAlarmController(
+                    InstrumentationRegistry.getInstrumentation().getTargetContext(), ui);
+            DriverMonitor monitor = new DriverMonitor();
+            long session = monitor.startSession();
+            DriverMonitor.FaceObservation face = new DriverMonitor.FaceObservation(
+                    1, 100, 0.1f, 0.1f, 0.9f, 100f, 95f, 90f);
+            int[] stops = {0};
+            long[] stopTime = {1250};
+            alarms.setOnDrowsinessAlarmStopped(() -> {
+                stops[0]++;
+                org.junit.Assert.assertTrue(monitor.onEyesAlarmStopped(session, stopTime[0]));
+            });
+            try {
+                for (long t = 0; t <= 1000; t += 250) {
+                    if ((monitor.onFaces(session, Collections.singletonList(face), t)
+                            & DriverMonitor.ALERT_EYES_CLOSED) != 0) {
+                        alarms.playWarningAlarm(AlertType.DROWSINESS);
+                    }
+                }
+                ui.stops.get(0).run();
+                for (long t = 1250; t <= 4250; t += 250) {
+                    if ((monitor.onFaces(session, Collections.singletonList(face), t)
+                            & DriverMonitor.ALERT_EYES_CLOSED) != 0) {
+                        alarms.playWarningAlarm(AlertType.DROWSINESS);
+                    }
+                }
+                assertEquals(Arrays.asList(AlertType.DROWSINESS, AlertType.DROWSINESS), ui.alerts);
+                ui.stops.get(0).run(); // 이전 알람 종료 콜백은 새 재경고를 예약하지 못함
+                assertEquals(1, stops[0]);
+                stopTime[0] = 4500;
+                ui.stops.get(1).run();
+                assertEquals(2, stops[0]);
+                alarms.playWarningAlarm(AlertType.YAWN);
+                ui.stops.get(2).run();
+                assertEquals(2, stops[0]);
+                alarms.release();
+                ui.stops.get(1).run();
+                assertEquals(2, stops[0]);
+            } finally {
+                alarms.release();
+            }
+        });
+    }
+
+    @Test
     public void queuedAlarmKeepsFirstOriginThroughDuplicateRequestsAndStop() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             RecordingUi ui = new RecordingUi();

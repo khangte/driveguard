@@ -145,6 +145,16 @@ final class DriverMonitor {
         return alerts;
     }
 
+    /** 사용자 중지 알림도 분석 스레드에서 처리한다. 이전 세션의 알림은 상태를 바꾸지 않는다. */
+    boolean onEyesAlarmStopped(long session, long stoppedAtMs) {
+        return onEyesAlarmStopped(session, stoppedAtMs, stoppedAtMs);
+    }
+
+    boolean onEyesAlarmStopped(long session, long stoppedAtMs, long appliedAtMs) {
+        return isCurrent(session) && appliedSession == session
+                && detector.onEyesAlarmStopped(stoppedAtMs, appliedAtMs);
+    }
+
     /** 추론 실패/예외로 관측을 얻지 못했으면 진행 중인 판정을 초기화한다. */
     void onFailure(long session) {
         onFailure(session, null);

@@ -43,7 +43,7 @@ public class FaceDetectionManager implements ImageAnalysis.Analyzer {
     /** 분석 간격. 1000ms에서 낮춘 측정 전 실험값이며 정확도/배터리 영향은 아직 측정하지 않았다. */
     static final long ANALYSIS_INTERVAL_MS = 250;
     /** 측정 로그에 남기는 판정 설정 버전. 임계값·분석 간격·ML Kit 옵션을 바꾸면 올린다. */
-    static final int DETECTION_CONFIG_VERSION = 1;
+    static final int DETECTION_CONFIG_VERSION = 2;
     private static final int PERFORMANCE_MODE = FaceDetectorOptions.PERFORMANCE_MODE_FAST;
     private static final int LANDMARK_MODE = FaceDetectorOptions.LANDMARK_MODE_ALL;
     private static final int CLASSIFICATION_MODE = FaceDetectorOptions.CLASSIFICATION_MODE_ALL;
@@ -95,6 +95,7 @@ public class FaceDetectionManager implements ImageAnalysis.Analyzer {
         config.put("analysis_interval_ms", ANALYSIS_INTERVAL_MS);
         config.put("eye_open_probability_threshold", DrowsinessDetector.EYE_OPEN_PROBABILITY_THRESHOLD);
         config.put("eyes_closed_duration_ms", DrowsinessDetector.EYES_CLOSED_DURATION_THRESHOLD_MS);
+        config.put("eyes_realert_after_stop_ms", DrowsinessDetector.EYES_REALERT_DELAY_MS);
         config.put("yawn_mouth_ratio_threshold", DrowsinessDetector.YAWN_MOUTH_RATIO_THRESHOLD);
         config.put("yawn_smiling_probability_threshold",
                 DrowsinessDetector.YAWN_SMILING_PROBABILITY_THRESHOLD);
@@ -117,6 +118,22 @@ public class FaceDetectionManager implements ImageAnalysis.Analyzer {
     /** 측정 로그 세션을 연결하거나(null이면) 끊는다. 메인 스레드에서 호출한다. */
     public void setLogSession(@Nullable DetectionLogRecorder.Session session) {
         logSession = session;
+    }
+
+    /** 메인 스레드에서 사용자 중지를 받아 현재 분석 세션에 전달한다. 타이머만으로 경고하지 않는다. */
+    public void onDrowsinessAlarmStopped() {
+        if (closed) return;
+        long session = driverMonitor.currentSession();
+        long stoppedAt = SystemClock.elapsedRealtime();
+        DetectionLogRecorder.Session log = logSession;
+        analysisExecutor.execute(() -> {
+            if (driverMonitor.onEyesAlarmStopped(session, stoppedAt, SystemClock.elapsedRealtime())
+                    && log != null) {
+                log.recordEvent("eyes_realert_scheduled", "analysis_session", session,
+                        "stopped_at_ms", log.relativeMs(stoppedAt),
+                        "delay_ms", DrowsinessDetector.EYES_REALERT_DELAY_MS);
+            }
+        });
     }
 
     /** CameraX ImageAnalysis에 등록할 분석 실행기. */

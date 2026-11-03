@@ -80,6 +80,7 @@ class MainActivity : AppCompatActivity(), FaceDetectionManager.Callback, Locatio
             bluetoothDevicePicker = BluetoothDevicePicker(this)
         }
         warningAlarmController = WarningAlarmController(this, this)
+        warningAlarmController.setOnDrowsinessAlarmStopped(faceDetectionManager::onDrowsinessAlarmStopped)
         if (BuildConfig.DEBUG) setUpDetectionLog()
         screenState.updatePermissions(permissionManager.hasCamera(), permissionManager.hasLocation())
         setContentView(

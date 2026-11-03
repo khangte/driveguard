@@ -82,7 +82,7 @@ UTF-8, 한 줄에 JSON 객체 하나. 모든 기록에 공통 필드가 있습�
 
 | 필드 | 의미 |
 | --- | --- |
-| `type` | `header`, `observation`, `analysis_failure`, `alert_dispatched`, `alert_discarded`, `alarm`, `marker`, `retention_cleanup`, `session_end` |
+| `type` | `header`, `observation`, `analysis_failure`, `alert_dispatched`, `alert_discarded`, `alarm`, `eyes_realert_scheduled`, `marker`, `retention_cleanup`, `session_end` |
 | `schema_version` | 로그 형식 버전 (1) |
 | `session_id`, `part` | 수집 세션 ID, 분할 번호 |
 | `seq` | 세션 전체에서 **파일에 쓴 순서** (분할을 넘어 이어짐) |
@@ -141,6 +141,7 @@ UTF-8, 한 줄에 JSON 객체 하나. 모든 기록에 공통 필드가 있습�
 | `alert_dispatched` | 판정 이벤트를 메인 스레드에서 알람 쪽으로 전달함 (`observation_id`, `eyes_closed`, `yawn`) |
 | `alert_discarded` | 전달 직전에 분석 세션이 끝나 버림 |
 | `alarm` | `WarningAlarmController` 흐름. `event`: `requested`, `suppressed_duplicate`(같은 경고 표시 중), `queued_pending`(다른 경고 표시 중이라 대기), `preempted_active`(졸음 경고가 표시 중 경고를 대체), `sound_unavailable`, `dialog_posted`(경고창 표시 요청), `stopped_by_user`, `stop_ignored_stale`. `alert`, `active_before` |
+| `eyes_realert_scheduled` | 유효한 지속 감김에서 졸음 알람을 끈 뒤 재경고 대기 시작. `analysis_session`, `stopped_at_ms`(세션 경과 시간), `delay_ms`(3,000ms) |
 | `marker` | `phase`: `start`/`end`/`abandoned`(마커가 열린 채 세션 종료), `marker_id`, `label` |
 | `retention_cleanup` | 상한 때문에 지운 파일 목록 |
 | `session_end` | `reason`(`user_stop`, `screen_paused`, `recorder_released`), `observations_started`, `frame_records_offered`, `frame_records_dropped_queue_full`, `records_written`, `files`, `deleted_own_files`, `complete` |
@@ -196,3 +197,17 @@ debug 빌드는 수집 여부와 관계없이 약 10초마다 Logcat(`FaceDetect
 ## 7. 다음 단계
 
 PC에서 JSONL을 CSV로 바꿔 눈 확률·얼굴 각도·관측 간격·초기화 사유·경고 시점을 비교합니다. 분석 프로그램은 이번 범위가 아닙니다.
+
+## 8. 지속 눈 감김 재경고 (config_version 2)
+
+- 첫 경고는 기존처럼 양쪽 눈 열림 확률이 모두 0.2 미만으로 1초 이상 유지될 때 발생합니다.
+- 사용자가 졸음 알람을 끈 시점에도 최근의 감김 판정이 유효하면, 그 시점부터 3초 뒤 재경고를 대기합니다.
+- 유효한 감김 관측이 계속 들어올 때, 3초가 지난 첫 관측에서 재경고합니다. 실제 표시 시점에는 분석 간격·처리 지연이 추가됩니다.
+- 알람이 켜져 있는 동안에는 반복 경고 이벤트를 발생시키지 않습니다. 재경고도 사용자가 끈 뒤에만 다음 재경고를 대기합니다.
+- 눈 뜸, 눈 값 누락·무효, 1초 초과 관측 공백, 얼굴 미감지, 대상 변경, 분석 실패, 분석 세션 변경은 대기 상태를 해제합니다.
+- 하품·CO₂ 알람 중지와 오래된 알람 종료 콜백은 눈 감김 재경고를 예약하지 않습니다.
+- 디버그 수집 여부와 관계없이 debug/release에 동일하게 적용합니다. 하품 판정 기준은 바꾸지 않습니다.
+
+**3초는 안전성이 검증된 기준이 아닌 초기 실험값**입니다. 헤더의 `eyes_realert_after_stop_ms`와 `config_version = 2`로 적용 설정을 확인하세요. JSON 형식 버전(`schema_version = 1`)과 판정 설정 버전은 별개입니다.
+
+정차 실험에서 시나리오를 `eyes_closed_realert`로 직접 입력하고, 관찰자가 첫 경고를 끈 뒤에도 눈 감김을 유지하는 경우를 확인하세요. `eyes_realert_scheduled` 이후 약 3초 뒤 새 관측 ID와 새 `alarm_id`의 경고가 발생해야 합니다. 중간에 눈을 뜨거나 얼굴을 가리면 이전 재경고 대기는 취소되고, 감김이 다시 관측되면 첫 경고 기준부터 새로 판단합니다.

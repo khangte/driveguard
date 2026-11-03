@@ -70,11 +70,17 @@ public class WarningAlarmController {
     private AlarmTrace activeTrace;
     private long alarmGeneration = 0;
     private EventListener eventListener;
+    private Runnable onDrowsinessAlarmStopped;
 
     public WarningAlarmController(Context context, Ui ui) {
         this.ui = ui;
         this.ttsManager = new TTSManager(context);
         this.soundManager = new SoundManager(context, R.raw.alarm_sound);
+    }
+
+    /** 유효한 졸음 알람을 사용자가 끈 경우에만 호출한다. 디버그 기록 여부와 무관하다. */
+    public void setOnDrowsinessAlarmStopped(Runnable listener) {
+        onDrowsinessAlarmStopped = listener;
     }
 
     public void setEventListener(EventListener listener) {
@@ -134,6 +140,9 @@ public class WarningAlarmController {
             ttsManager.cancelPending();
             activeAlert = null;
             activeTrace = null;
+            if (alertType == AlertType.DROWSINESS && onDrowsinessAlarmStopped != null) {
+                onDrowsinessAlarmStopped.run();
+            }
             if (alertType == AlertType.DROWSINESS || alertType == AlertType.YAWN) {
                 ui.showGuideDialog();
             }
@@ -156,6 +165,7 @@ public class WarningAlarmController {
         activeAlert = null;
         activeTrace = null;
         pendingAlerts.clear();
+        onDrowsinessAlarmStopped = null;
         soundManager.release();
         ttsManager.shutdown();
     }

@@ -6,12 +6,15 @@ package com.example.drowsydrive.detection;
  *
  * <p>지속 시간은 연속된 유효 관측으로만 계산한다. 관측 공백이 {@link #MAX_OBSERVATION_GAP_MS}를
  * 넘거나, 무효 관측(누락/비유한 값)이 들어오면 진행 중인 에피소드를 초기화한다.
- * 한 에피소드에서는 한 번만 true를 반환하고, 정상 상태 관측 또는 초기화 후 다시 경고할 수 있다.
+ * 첫 경고는 에피소드당 한 번 발생한다. 눈 감김은 사용자가 알람을 끈 뒤에도 유효하게 지속되면
+ * 재경고할 수 있으며, 정상/무효 관측이나 초기화 시 재경고 대기를 해제한다.
  * 스레드 안전하지 않으므로 한 스레드에서만 호출해야 한다.
  */
 public final class DrowsinessDetector {
     static final double EYE_OPEN_PROBABILITY_THRESHOLD = 0.2; // 두 눈 열림 확률이 이보다 작으면 감김
     static final long EYES_CLOSED_DURATION_THRESHOLD_MS = 1000; // 눈 감김 지속 시간 임계값
+    /** 알람 중지 후 지속 감김 재경고 간격. 안전성이 검증된 기준이 아닌 초기 실험값이다. */
+    static final long EYES_REALERT_DELAY_MS = 3000;
     static final double YAWN_MOUTH_RATIO_THRESHOLD = 0.80; // (입-코 거리)/(입-오른쪽 눈 거리) 비율
     static final double YAWN_SMILING_PROBABILITY_THRESHOLD = 0.2; // 웃음 확률이 이보다 작아야 하품
     static final long YAWN_DURATION_THRESHOLD_MS = 2500; // 하품 지속 시간 임계값
@@ -63,19 +66,46 @@ public final class DrowsinessDetector {
 
     private final Episode eyes = new Episode();
     private final Episode yawn = new Episode();
+    private long eyesRealertAtMs = -1;
     /** 마지막 하품 갱신에서 계산한 비율. 계산하지 못했으면 null. 측정 로그용이다. */
     private Float lastYawnRatio = null;
 
-    /** 눈 상태를 갱신하고, 눈 감김이 임계 시간 이상 지속되면 에피소드당 한 번 true를 반환한다. */
+    /** 첫 감김 경고 또는 알람 중지 후 지속 감김의 재경고 시 true를 반환한다. */
     public boolean updateEyes(float leftEyeOpenProbability, float rightEyeOpenProbability, long nowMs) {
         if (!isFinite(leftEyeOpenProbability) || !isFinite(rightEyeOpenProbability)) {
             eyes.reset();
             eyes.lastOutcome = Outcome.INVALID_INPUT;
+            eyesRealertAtMs = -1;
             return false;
         }
         boolean closed = leftEyeOpenProbability < EYE_OPEN_PROBABILITY_THRESHOLD
                 && rightEyeOpenProbability < EYE_OPEN_PROBABILITY_THRESHOLD;
-        return eyes.update(closed, nowMs, EYES_CLOSED_DURATION_THRESHOLD_MS);
+        boolean firstAlert = eyes.update(closed, nowMs, EYES_CLOSED_DURATION_THRESHOLD_MS);
+        if (!eyes.active || eyes.lastOutcome == Outcome.STARTED
+                || eyes.lastOutcome == Outcome.GAP_RESTARTED || firstAlert) {
+            eyesRealertAtMs = -1;
+        }
+        if (firstAlert) return true;
+        if (eyesRealertAtMs >= 0 && nowMs >= eyesRealertAtMs) {
+            eyesRealertAtMs = -1; // 다음 재경고는 이 알람을 실제로 끈 뒤에만 예약한다.
+            return true;
+        }
+        return false;
+    }
+
+    /** 신선한 감김 에피소드가 유지 중일 때만 사용자 중지 시각부터 재경고를 대기한다. */
+    boolean onEyesAlarmStopped(long stoppedAtMs) {
+        return onEyesAlarmStopped(stoppedAtMs, stoppedAtMs);
+    }
+
+    /** 다른 스레드의 중지 알림이 새 관측보다 늦게 처리돼도 실제 중지 시각부터 대기한다. */
+    boolean onEyesAlarmStopped(long stoppedAtMs, long appliedAtMs) {
+        if (!eyes.active || !eyes.alerted || eyesRealertAtMs >= 0
+                || stoppedAtMs < eyes.startMs
+                || appliedAtMs < stoppedAtMs || appliedAtMs < eyes.lastObservationMs
+                || appliedAtMs - eyes.lastObservationMs > MAX_OBSERVATION_GAP_MS) return false;
+        eyesRealertAtMs = stoppedAtMs + EYES_REALERT_DELAY_MS;
+        return true;
     }
 
     /** 입 상태를 갱신하고, 하품이 임계 시간 이상 지속되면 에피소드당 한 번 true를 반환한다. */
@@ -112,6 +142,7 @@ public final class DrowsinessDetector {
     public void invalidateEyes() {
         eyes.reset();
         eyes.lastOutcome = Outcome.INVALIDATED;
+        eyesRealertAtMs = -1;
     }
 
     /** 하품 관측이 누락되면 진행 중인 하품 판정을 초기화한다. */
@@ -123,6 +154,7 @@ public final class DrowsinessDetector {
 
     /** 얼굴 미감지, 대상 변경, 추론 실패, 세션 변경 시 진행 중인 판정을 모두 초기화한다. */
     public void reset() {
+        eyesRealertAtMs = -1;
         eyes.reset();
         yawn.reset();
     }
